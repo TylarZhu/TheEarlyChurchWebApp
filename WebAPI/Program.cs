@@ -1,7 +1,6 @@
 using Infrastructure.MongoDBSetUp;
 using Infrastructure.DBService;
 using Domain.Interfaces;
-using Domain.HubInterface;
 using WebAPI;
 
 var builder = WebApplication.CreateBuilder(args);

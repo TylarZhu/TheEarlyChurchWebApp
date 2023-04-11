@@ -14,7 +14,6 @@ namespace Infrastructure.DBService
             var mongoClient = new MongoClient(rankingBoradDBSettings.Value.ConnectionString);
             var mongoDb = mongoClient.GetDatabase(rankingBoradDBSettings.Value.DatabaseName);
             rankingBoardService = mongoDb.GetCollection<RankingBoard>(rankingBoradDBSettings.Value.RankingBoradCollectionName);
-            Console.WriteLine(rankingBoradDBSettings.Value.RankingBoradCollectionName);
         }
         public async Task createRankingBoard(RankingBoard newRanking) =>
             await rankingBoardService.InsertOneAsync(newRanking);

@@ -7,7 +7,7 @@ namespace WebAPI
     public abstract class PlayerGroupsHubBase : Hub<IPlayerGroupsHub>
     {
         public abstract Task onConntionAndCreateGroup(CreateNewUser createNewUser);
-        public abstract Task leaveGroup();
-        public abstract Task onDisconnect();
+        public abstract Task leaveGroup(string groupName);
+        /*public abstract Task onDisconnect();*/
     }
 }

@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Domain.DBEntities;
 using Domain.Interfaces;
 using Domain.APIClass;

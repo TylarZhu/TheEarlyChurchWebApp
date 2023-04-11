@@ -1,9 +1,7 @@
 ﻿namespace Infrastructure.MongoDBSetUp
 {
-    public class RankingBoradDBSettings
+    public class RankingBoradDBSettings: BaseSettings
     {
-        public string ConnectionString { get; set; } = null!;
-        public string DatabaseName { get; set; } = null!;
         public string RankingBoradCollectionName { get; set; } = null!;
     }
 }

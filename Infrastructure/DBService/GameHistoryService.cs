@@ -15,7 +15,6 @@ namespace Infrastructure.DBService
             var mongoClient = new MongoClient(playerStoreDatabaseSettings.Value.ConnectionString);
             var mongoDb = mongoClient.GetDatabase(playerStoreDatabaseSettings.Value.DatabaseName);
             gameHistoryService = mongoDb.GetCollection<GameHistory>(playerStoreDatabaseSettings.Value.GameHistoryCollectionName);
-            Console.WriteLine(playerStoreDatabaseSettings.Value.GameHistoryCollectionName);
         }
 
         public async Task createGameHistory(GameHistory gameHistory) => 

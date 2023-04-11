@@ -4,7 +4,7 @@ namespace Domain.Common
 {
     public class Players
     {
-        public string name { get; private set; }
+/*        public string name { get; private set; }*/
         public Identities identity { get; private set; }
         public int number { get; private set; }
         public double originalVote { get; private set; } // 最原始的权重
@@ -20,9 +20,8 @@ namespace Domain.Common
 
 
 
-        public Players(Identities identity, string name = "", int number = -1, bool protection = false)
+        public Players(Identities identity, int number = -1, bool protection = false)
         {
-            this.name = name;
             this.identity = identity;
             this.number = number;
             switch (this.identity)

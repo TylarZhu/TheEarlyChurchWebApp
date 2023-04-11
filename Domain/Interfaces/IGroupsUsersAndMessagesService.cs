@@ -1,0 +1,20 @@
+﻿using Domain.DBEntities;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
+
+namespace Domain.Interfaces
+{
+    public interface IGroupsUsersAndMessagesService
+    {
+        Task addNewGroupAndFirstUser(GroupsUsersAndMessages groupsUsersAndMessages);
+        Task<GroupsUsersAndMessages> getOneGroup(string groupName);
+        Task<List<OnlineUsers>> getUsersFromOneGroup(string groupName);
+        Task<List<Message>> getMessagesFromOneGroup(string groupName);
+        Task isGroupEmpty(string groupName);
+        Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name);
+        Task<bool> checkIfGroupIsFull(string groupName);
+        Task deleteOneUserFromGroup(string groupName, string name);
+        Task addNewMessageIntoGroup(string groupName, Message newMessage);
+        Task addNewUserIntoGroup(string groupName, OnlineUsers onlineUsers);
+    }
+}

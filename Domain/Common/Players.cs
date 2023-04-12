@@ -1,10 +1,7 @@
-﻿using Domain.Common;
-
-namespace Domain.Common
+﻿namespace Domain.Common
 {
     public class Players
     {
-/*        public string name { get; private set; }*/
         public Identities identity { get; private set; }
         public int number { get; private set; }
         public double originalVote { get; private set; } // 最原始的权重

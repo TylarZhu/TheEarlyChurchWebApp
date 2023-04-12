@@ -78,8 +78,8 @@ namespace WebAPI.Controllers
         }
 
         [HttpGet("checkIfUserNameInGroupDuplicate/{groupName}/{userName}")]
-        public async Task<ActionResult<bool>> checkIfUserNameInGroupDuplicate(string groupName, string userName) => 
-            await groupsUsersAndMessagesService.checkIfUserNameInGroupDuplicate(groupName, userName);
+        public async Task<ActionResult<bool>> checkIfUserNameInGroupDuplicate(string groupName, string userName) =>
+            await groupsUsersAndMessagesService.checkIfUserNameInGroupDuplicate(groupName, userName);    
 
         [HttpGet("checkIfGroupIsFull/{groupName}")]
         public async Task<ActionResult<bool>> getIfGroupIsFull(string groupName) =>

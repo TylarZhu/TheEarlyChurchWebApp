@@ -3,6 +3,7 @@ using Domain.Interfaces;
 using Infrastructure.MongoDBSetUp;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
@@ -35,6 +36,32 @@ namespace Infrastructure.DBService
                 await groupsUsersAndMessagesService.DeleteOneAsync(x => x.groupName == groupName);
             }
         }
+        public async Task<OnlineUsers> getOneUserFromSpecificGroup(string groupName, string? name = "", string? connectionId = "")
+        {
+            BsonDocument results;
+
+            if (string.IsNullOrEmpty(name))
+            {
+                results = await groupsUsersAndMessagesService.Aggregate()
+                    .Match(new BsonDocument { { "groupName", groupName } })
+                    .Unwind(x => x.onlineUsers)
+                    .Match(new BsonDocument { { "onlineUsers.connectionId", connectionId } })
+                    .Project(new BsonDocument { { "onlineUsers", 1 } })
+                    .FirstOrDefaultAsync();
+            }
+            else
+            {
+                results = await groupsUsersAndMessagesService.Aggregate()
+                    .Match(new BsonDocument { { "groupName", groupName } })
+                    .Unwind(x => x.onlineUsers)
+                    .Match(new BsonDocument { { "onlineUsers.name", name } })
+                    .Project(new BsonDocument { { "onlineUsers", 1 } })
+                    .FirstOrDefaultAsync();
+            }
+
+            
+            return BsonSerializer.Deserialize<OnlineUsers>(results[1].ToJson());
+        }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
         {
             var filter = Builders<GroupsUsersAndMessages>.Filter.And(
@@ -43,7 +70,7 @@ namespace Infrastructure.DBService
                     x => x.onlineUsers,
                     Builders<OnlineUsers>.Filter.Eq(x => x.name, name)
                 ));
-            if(await groupsUsersAndMessagesService.Find(filter).FirstOrDefaultAsync() == null)
+            if (await groupsUsersAndMessagesService.Find(filter).FirstOrDefaultAsync() == null)
             {
                 return false;
             }

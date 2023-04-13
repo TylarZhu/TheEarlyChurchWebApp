@@ -6,6 +6,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
+using System.Xml.Linq;
 
 namespace Infrastructure.DBService
 {
@@ -19,7 +20,6 @@ namespace Infrastructure.DBService
             var mongoDb = mongoClient.GetDatabase(groupsUsersAndMessagesSettings.Value.DatabaseName);
             groupsUsersAndMessagesService = mongoDb.GetCollection<GroupsUsersAndMessages>(groupsUsersAndMessagesSettings.Value.GroupsUsersAndMessagesCollectionName);
         }
-
         public async Task addNewGroupAndFirstUser(GroupsUsersAndMessages groupsUsersAndMessages) =>
             await groupsUsersAndMessagesService.InsertOneAsync(groupsUsersAndMessages);
         public async Task<GroupsUsersAndMessages> getOneGroup(string groupName) =>
@@ -28,13 +28,15 @@ namespace Infrastructure.DBService
             await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.onlineUsers).FirstOrDefaultAsync();
         public async Task<List<Message>> getMessagesFromOneGroup(string groupName) =>
             await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.messages).FirstOrDefaultAsync();
-        public async Task isGroupEmpty(string groupName)
+        public async Task<bool> isGroupEmpty(string groupName)
         {
             GroupsUsersAndMessages group = await getOneGroup(groupName);
             if(group.onlineUsers.Count == 0)
             {
                 await groupsUsersAndMessagesService.DeleteOneAsync(x => x.groupName == groupName);
+                return true;
             }
+            return false;
         }
         public async Task<OnlineUsers> getOneUserFromSpecificGroup(string groupName, string? name = "", string? connectionId = "")
         {
@@ -58,8 +60,16 @@ namespace Infrastructure.DBService
                     .Project(new BsonDocument { { "onlineUsers", 1 } })
                     .FirstOrDefaultAsync();
             }
-
-            
+            return BsonSerializer.Deserialize<OnlineUsers>(results[1].ToJson());
+        }
+        public async Task<OnlineUsers> getGroupLeaderFromSpecificGroup(string groupName)
+        {
+            var results = await groupsUsersAndMessagesService.Aggregate()
+                .Match(new BsonDocument { { "groupName", groupName } })
+                .Unwind(x => x.onlineUsers)
+                .Match(new BsonDocument { { "onlineUsers.groupLeader", true } })
+                .Project(new BsonDocument { { "onlineUsers", 1 } })
+                .FirstOrDefaultAsync();
             return BsonSerializer.Deserialize<OnlineUsers>(results[1].ToJson());
         }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
@@ -76,13 +86,18 @@ namespace Infrastructure.DBService
             }
             return true;
         }
-
         public async Task deleteOneUserFromGroup(string groupName, string name)
         {
+            var filter = Builders<GroupsUsersAndMessages>.Filter.And(
+                Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
+                Builders<GroupsUsersAndMessages>.Filter.ElemMatch(
+                    x => x.onlineUsers,
+                    Builders<OnlineUsers>.Filter.Eq(x => x.name, name)
+                ));
             var update = Builders<GroupsUsersAndMessages>.Update.PullFilter(
                 x => x.onlineUsers, 
                 Builders<OnlineUsers>.Filter.Eq(x => x.name, name));
-            await groupsUsersAndMessagesService.FindOneAndUpdateAsync(x => x.groupName == groupName, update);
+            await groupsUsersAndMessagesService.FindOneAndUpdateAsync(filter, update);
         }
         public async Task addNewMessageIntoGroup(string groupName, Message newMessage) =>
             await groupsUsersAndMessagesService.FindOneAndUpdateAsync(
@@ -98,6 +113,17 @@ namespace Infrastructure.DBService
         {
             GroupsUsersAndMessages group = await getOneGroup(groupName);
             return group.onlineUsers.Count >= group.maxPlayers;
+        }
+        public async Task nextFirstUserAssignAsGroupLeader(string groupName)
+        {
+            var filter = Builders<GroupsUsersAndMessages>.Filter.And(
+                Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
+                Builders<GroupsUsersAndMessages>.Filter.ElemMatch(
+                    x => x.onlineUsers,
+                    Builders<OnlineUsers>.Filter.Eq(x => x.groupLeader, false)
+                ));
+            var update = Builders <GroupsUsersAndMessages>.Update.Set("onlineUsers.$.groupLeader", true);
+            await groupsUsersAndMessagesService.UpdateOneAsync(filter, update);
         }
     }
 }

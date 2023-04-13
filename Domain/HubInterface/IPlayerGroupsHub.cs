@@ -1,4 +1,5 @@
-﻿using Domain.DBEntities;
+﻿using Domain.APIClass;
+using Domain.DBEntities;
 
 namespace Domain.HubInterface
 {
@@ -9,5 +10,6 @@ namespace Domain.HubInterface
         Task CreateNewUserJoinNewGroup(string connectionId, string groupName, string username, string numberOfPlayers);
         Task updateOnlineUserList(List<OnlineUsers> onlineUsers);
         Task leaveGroupUserConnectionId(string connectionId);
+        Task updateGroupLeader(CreateNewUser users);
     }
 }

@@ -1,5 +1,5 @@
 ﻿using Domain.APIClass;
-using Domain.DBEntities;
+using Domain.Common;
 
 namespace Domain.HubInterface
 {
@@ -11,5 +11,6 @@ namespace Domain.HubInterface
         Task updateOnlineUserList(List<OnlineUsers> onlineUsers);
         Task leaveGroupUserConnectionId(string connectionId);
         Task updateGroupLeader(CreateNewUser users);
+        Task GameStop();
     }
 }

@@ -6,7 +6,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
+using Domain.Common;
 using System.Xml.Linq;
+using System.Collections.Concurrent;
 
 namespace Infrastructure.DBService
 {
@@ -14,6 +16,7 @@ namespace Infrastructure.DBService
     {
         private readonly IMongoCollection<GroupsUsersAndMessages> groupsUsersAndMessagesService;
 
+        // group operations
         public GroupsUsersAndMessagesService(IOptions<GroupsUsersAndMessagesSettings> groupsUsersAndMessagesSettings)
         {
             var mongoClient = new MongoClient(groupsUsersAndMessagesSettings.Value.ConnectionString);
@@ -24,8 +27,8 @@ namespace Infrastructure.DBService
             await groupsUsersAndMessagesService.InsertOneAsync(groupsUsersAndMessages);
         public async Task<GroupsUsersAndMessages> getOneGroup(string groupName) =>
             await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).FirstOrDefaultAsync();
-        public async Task<List<OnlineUsers>> getUsersFromOneGroup(string groupName) => 
-            await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.onlineUsers).FirstOrDefaultAsync();
+        public async Task<List<OnlineUsers>> getUsersFromOneGroup(string groupName) =>
+             await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.onlineUsers).FirstOrDefaultAsync();
         public async Task<List<Message>> getMessagesFromOneGroup(string groupName) =>
             await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.messages).FirstOrDefaultAsync();
         public async Task<bool> isGroupEmpty(string groupName)
@@ -122,8 +125,21 @@ namespace Infrastructure.DBService
                     x => x.onlineUsers,
                     Builders<OnlineUsers>.Filter.Eq(x => x.groupLeader, false)
                 ));
-            var update = Builders <GroupsUsersAndMessages>.Update.Set("onlineUsers.$.groupLeader", true);
+            var update = Builders<GroupsUsersAndMessages>.Update.Set("onlineUsers.$.groupLeader", true);
             await groupsUsersAndMessagesService.UpdateOneAsync(filter, update);
+        }
+
+        // game operations
+        public async Task createAGame(string groupName, int christans, int judaisms) =>
+            await groupsUsersAndMessagesService.UpdateOneAsync(x => x.groupName == groupName,
+                Builders<GroupsUsersAndMessages>.Update.Set(x => x.numOfChristans, christans)
+                    .Set(x => x.numOfJudaisms, judaisms));
+        public async Task assginIdentities(string groupName)
+        {
+            GroupsUsersAndMessages group = await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).FirstOrDefaultAsync();
+            List<OnlineUsers> users = group.issuedIdentityCards();
+            var update = Builders<GroupsUsersAndMessages>.Update.Set("onlineUsers", users);
+            await groupsUsersAndMessagesService.UpdateOneAsync(x => x.groupName == groupName, update);
         }
     }
 }

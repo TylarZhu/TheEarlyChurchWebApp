@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Domain.DBEntities;
 using Domain.Interfaces;
 using Domain.APIClass;
+using Domain.Common;
 using Infrastructure.DBService;
 
 namespace WebAPI.Controllers
@@ -13,72 +14,57 @@ namespace WebAPI.Controllers
     public class HubRequestController : Controller
     {
         private readonly IHubContext<PlayerGroupsHubBase, IPlayerGroupsHub> _hub;
-        private readonly IGroupsUsersAndMessagesService groupsUsersAndMessagesService;
+        private readonly ICacheService redisCacheService;
 
         public HubRequestController(IHubContext<PlayerGroupsHubBase, 
             IPlayerGroupsHub> hub,
-            IGroupsUsersAndMessagesService groupsUsersAndMessagesService)
+            ICacheService redisCacheService)
         {
             _hub = hub;
-            this.groupsUsersAndMessagesService = groupsUsersAndMessagesService;
+            this.redisCacheService = redisCacheService;
         }
 
-        /*[HttpPost("messagesToAllUserInGroup/{groupName}")]
-        public async Task<IActionResult> sendMessageToAllUsers(string groupName, [FromBody] string message)
-        {
-            await _hub.Clients.Group(groupName).ReceiveMessage(new Message("system", message));
-            return Ok();
-
-        }*/
         [HttpPost("onlineUser")]
         public async Task<IActionResult> postAOnlineUser([FromBody] CreateNewUser newUser)
         {
-            GroupsUsersAndMessages gourp = await groupsUsersAndMessagesService.getOneGroup(newUser.groupName);
-            OnlineUsers groupLeader = null!;
-            if (gourp == null)
+
+            if(!redisCacheService.CheckIfGroupExsits(newUser.groupName) && int.TryParse(newUser.maxPlayerInGroup, out int maxPlayerInGroup))
             {
-                if (int.TryParse(newUser.maxPlayerInGroup, out int maxPlayerInGroup))
-                {
-                    groupLeader = new OnlineUsers(newUser.name, newUser.connectionId, true);
-                    await groupsUsersAndMessagesService.addNewGroupAndFirstUser(
-                        new GroupsUsersAndMessages(
-                            newUser.groupName,
-                            maxPlayerInGroup,
-                            groupLeader
-                    ));
-                }
+
+                await redisCacheService.SetNewGroupAsync(newUser.groupName,
+                    new GamesGroupsUsersMessages(newUser.groupName, maxPlayerInGroup),
+                    new OnlineUsers(newUser.name, newUser.connectionId, true));
             }
             else
             {
-                await groupsUsersAndMessagesService.addNewUserIntoGroup(
-                    newUser.groupName,
-                    new OnlineUsers(newUser.name, newUser.connectionId)
-                );
-
-                groupLeader = await groupsUsersAndMessagesService.getGroupLeaderFromSpecificGroup( newUser.groupName );
+                await redisCacheService.AddNewUsersToGroupAsync(newUser.groupName, 
+                    new OnlineUsers(newUser.name, newUser.connectionId));
             }
-            await groupsUsersAndMessagesService.addNewMessageIntoGroup(newUser.groupName, new Message("system", $"{newUser.name} join {newUser.groupName} group!"));
+            await redisCacheService.AddNewMessageIntoGroup(newUser.groupName, new Message("system", $"{newUser.name} join {newUser.groupName} group!"));
 
             await _hub.Clients.Group(newUser.groupName).updateOnlineUserList(
-                await groupsUsersAndMessagesService.getUsersFromOneGroup(newUser.groupName));
+               await redisCacheService.getAllUsers(newUser.groupName));
+
             await _hub.Clients.Group(newUser.groupName).ReceiveMessages(
-                await groupsUsersAndMessagesService.getMessagesFromOneGroup(newUser.groupName));
-            
-            await _hub.Clients.Group(newUser.groupName).updateGroupLeader(
-                new CreateNewUser(
-                    groupLeader.connectionId, 
-                    groupLeader.name, 
-                    newUser.groupName, 
-                    newUser.maxPlayerInGroup
-            ));
-            
+                await redisCacheService.getAllMessagesInGroup(newUser.groupName));
+
+            OnlineUsers? groupLeader = await redisCacheService.getGroupLeaderFromGroup(newUser.groupName);
+
+            if (groupLeader != null)
+            {
+                await _hub.Clients.Group(newUser.groupName).updateGroupLeader(
+                 new CreateNewUser(
+                     groupLeader.connectionId,
+                     groupLeader.name,
+                     newUser.groupName,
+                     newUser.maxPlayerInGroup));
+            }
             return CreatedAtAction(nameof(postAOnlineUser), new { id = newUser.connectionId }, newUser);
         }
-        /*[HttpPost[""]]*/
         [HttpGet("getAllUsersInGroup/{groupName}")]
         public async Task<ActionResult<List<OnlineUsers>>> getAllUsersInGroup(string groupName)
         {
-            List<OnlineUsers> usersInGroup = await groupsUsersAndMessagesService.getUsersFromOneGroup(groupName);
+            List<OnlineUsers> usersInGroup = await redisCacheService.getAllUsers(groupName);
             if (usersInGroup == null)
             {
                 return BadRequest();
@@ -88,14 +74,14 @@ namespace WebAPI.Controllers
         }
         [HttpGet("checkIfUserNameInGroupDuplicate/{groupName}/{userName}")]
         public async Task<ActionResult<bool>> checkIfUserNameInGroupDuplicate(string groupName, string userName) =>
-            await groupsUsersAndMessagesService.checkIfUserNameInGroupDuplicate(groupName, userName);    
+            await redisCacheService.checkIfUserNameInGroupDuplicate(groupName, userName);    
         [HttpGet("checkIfGroupIsFull/{groupName}")]
         public async Task<ActionResult<bool>> getIfGroupIsFull(string groupName) =>
-            await groupsUsersAndMessagesService.checkIfGroupIsFull(groupName);
+            await redisCacheService.checkIfGroupIsFull(groupName);
         [HttpGet("checkIfGroupExists/{groupName}")]
         public async Task<ActionResult<bool>> checkIfGroupExists(string groupName)
         {
-            if(await groupsUsersAndMessagesService.getOneGroup(groupName) != null)
+            if(await redisCacheService.GetGroupAsync(groupName) != null)
             {
                 return Ok(true);
             }
@@ -104,34 +90,46 @@ namespace WebAPI.Controllers
                 return Ok(false);
             }
         }
-        [HttpGet("checkIfUserIsGroupLeader/{groupName}/{userName}")]
-        public async Task<ActionResult<bool>> checkIfUserIsGroupLeader(string groupName, string username)
+        [HttpPost("assignNextGroupLeader/{groupName}/{nextGroupLeader}/{originalGroupLeader}")]
+        public async Task<ActionResult<OnlineUsers>> assignUserAsGroupLeader(string groupName, string nextGroupLeader, string originalGroupLeader)
         {
-            OnlineUsers user  = await groupsUsersAndMessagesService.getOneUserFromSpecificGroup(groupName, username);
-            return Ok(user.groupLeader);
-        }
-        [HttpDelete("userLeaveTheGame/{groupName}/{userName}")]
-        public async Task<ActionResult<OnlineUsers>> userLeaveTheGame(string groupName, string userName)
-        {
-            OnlineUsers leaveUser = await groupsUsersAndMessagesService.getOneUserFromSpecificGroup(groupName, userName);
-            await groupsUsersAndMessagesService.deleteOneUserFromGroup(groupName, userName);
-            await _hub.Clients.Group(groupName).updateOnlineUserList(
-                await groupsUsersAndMessagesService.getUsersFromOneGroup(groupName));
-
-            await groupsUsersAndMessagesService.addNewMessageIntoGroup(groupName, new Message("system", $"{userName} has leave {groupName} group!"));
-            await _hub.Clients.Group(groupName).ReceiveMessages(
-                await groupsUsersAndMessagesService.getMessagesFromOneGroup(groupName));
-
-            // if there are still users in group and the leaving user is the group leader,
-            // then the next user in group will be the group leader.
-            if(!await groupsUsersAndMessagesService.isGroupEmpty(groupName) && leaveUser.groupLeader)
+            OnlineUsers? groupLeader = await redisCacheService.assignUserAsGroupLeader(groupName, nextGroupLeader, originalGroupLeader);
+            if(groupLeader != null)
             {
-                await groupsUsersAndMessagesService.nextFirstUserAssignAsGroupLeader(groupName);
-                OnlineUsers onlineUser = await groupsUsersAndMessagesService.getGroupLeaderFromSpecificGroup(groupName);
-                await _hub.Clients.Group(groupName).updateGroupLeader(new CreateNewUser(onlineUser.connectionId, onlineUser.name, groupName, "0"));
-
+                await _hub.Clients.Group(groupName).updateGroupLeader(new CreateNewUser(groupLeader!.connectionId, groupLeader.name, groupName, "0"));
+                return Ok(groupLeader);
             }
-            return Ok(leaveUser);
+            return BadRequest();
+        }
+        [HttpDelete("userLeaveTheGame/{groupName}/{userName}/{gameOn}")]
+        public async Task<ActionResult<OnlineUsers>> userLeaveTheGame(string groupName, string userName, bool gameOn = false)
+        {
+            OnlineUsers? leaveUser = await redisCacheService.removeUserAndAssignNextUserAsGroupLeader(groupName, userName);
+            if (leaveUser != null)
+            {
+                await _hub.Clients.Group(groupName).updateOnlineUserList(
+                await redisCacheService.getAllUsers(groupName));
+
+                await redisCacheService.AddNewMessageIntoGroup(groupName, new Message("system", $"{userName} has leave {groupName} group!"));
+                await _hub.Clients.Group(groupName).ReceiveMessages(
+                    await redisCacheService.getAllMessagesInGroup(groupName));
+
+                if (!await redisCacheService.isGroupEmpty(groupName) && leaveUser.groupLeader)
+                {
+                    OnlineUsers? onlineUser = await redisCacheService.getGroupLeaderFromGroup(groupName);
+                    await _hub.Clients.Group(groupName).updateGroupLeader(new CreateNewUser(onlineUser!.connectionId, onlineUser.name, groupName, "0"));
+
+                }
+                if (gameOn)
+                {
+                    await _hub.Clients.Group(groupName).GameStop();
+                }
+                return Ok(leaveUser);
+            }
+            else
+            {
+                return NotFound(false);
+            }
         }
     }
 }

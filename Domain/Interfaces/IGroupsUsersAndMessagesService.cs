@@ -1,11 +1,12 @@
 ﻿using Domain.DBEntities;
-using Microsoft.Extensions.Options;
-using MongoDB.Driver;
+using Domain.Common;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Domain.Interfaces
 {
     public interface IGroupsUsersAndMessagesService
     {
+        // group operations
         Task addNewGroupAndFirstUser(GroupsUsersAndMessages groupsUsersAndMessages);
         Task<GroupsUsersAndMessages> getOneGroup(string groupName);
         Task<List<OnlineUsers>> getUsersFromOneGroup(string groupName);
@@ -19,5 +20,9 @@ namespace Domain.Interfaces
         Task addNewUserIntoGroup(string groupName, OnlineUsers onlineUsers);
         Task<OnlineUsers> getGroupLeaderFromSpecificGroup(string groupName);
         Task nextFirstUserAssignAsGroupLeader(string groupName);
+
+        // game operations
+        Task createAGame(string groupName, int christans, int judaisms);
+        Task assginIdentities(string groupName);
     }
 }

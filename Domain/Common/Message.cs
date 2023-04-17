@@ -1,4 +1,4 @@
-﻿namespace Domain.DBEntities
+﻿namespace Domain.Common
 {
     public class Message
     {

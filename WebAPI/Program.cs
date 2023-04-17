@@ -2,7 +2,7 @@ using Infrastructure.MongoDBSetUp;
 using Infrastructure.DBService;
 using Domain.Interfaces;
 using WebAPI;
-using Redis.OM;
+using Infrastructure.DistributedCacheService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,19 +14,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<GameHistoryDBSettings>(builder.Configuration.GetSection("Database"));
 builder.Services.Configure<RankingBoradDBSettings>(builder.Configuration.GetSection("Database"));
 builder.Services.Configure<GroupsUsersAndMessagesSettings>(builder.Configuration.GetSection("Database"));
-/*builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName = "TheEarlyChurchInstance";
-});*/
-/*builder.Services.AddHostedService<IndexCreationService>();
 
-builder.Services.AddSingleton(new RedisConnectionProvider(builder.Configuration.GetConnectionString("Redis")!));*/
+
 builder.Services.AddScoped<IGameHistoryService, GameHistoryService>();
 builder.Services.AddScoped<IRankingBoardService, RankingBoardService>();
 builder.Services.AddScoped<IGroupsUsersAndMessagesService, GroupsUsersAndMessagesService>();
 
 builder.Services.AddScoped<PlayerGroupsHubBase, PlayerGroupsHub>();
+
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "TheEarlyChurch";
+});
+builder.Services.AddScoped<ICacheService, DistributedCacheService>();
 
 
 string policyName = "defaultCorsPolicy";

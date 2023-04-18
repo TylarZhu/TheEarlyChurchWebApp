@@ -26,5 +26,53 @@ namespace Domain.DBEntities
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
         }
+
+        public List<Identities> issuedIdentityCards()
+        {
+            List<Identities> identities = new List<Identities>();
+            Random rand = new Random();
+
+            identities.Add(Identities.Judas);
+            identities.Add(Identities.Scribes);
+            identities.Add(Identities.Pharisee);
+            identities.Add(Identities.Peter);
+            identities.Add(Identities.John);
+            identities.Add(Identities.Nicodemus);
+
+            if (maxPlayers % 2 != 0)
+            {
+                int addChoice = rand.Next(0, 2);
+                if (addChoice == 1)
+                {
+                    identities.Add(Identities.Judaism);
+                }
+                else
+                {
+                    identities.Add(Identities.Laity);
+                }
+            }
+
+            for (int i = 0; i < maxPlayers / 2 - 3; i++)
+            {
+                identities.Add(Identities.Judaism);
+            }
+            for (int i = 0; i < maxPlayers / 2 - 3; i++)
+            {
+                identities.Add(Identities.Laity);
+            }
+
+
+
+            for (int i = identities.Count - 1; i > 0; i--)
+            {
+                int rad = rand.Next(0, i);
+                Identities temp = identities[i];
+                identities[i] = identities[rad];
+                identities[rad] = temp;
+            }
+
+            return identities;
+            
+        }
     }
 }

@@ -15,6 +15,8 @@ namespace Infrastructure.DistributedCacheService
         {
             this.distributedCache = distributedCache;
         }
+
+        // Group and User
         public async Task<GamesGroupsUsersMessages?> GetGroupAsync(string groupName, CancellationToken cancellationToken = default)
         {
             string? value = await distributedCache.GetStringAsync(groupName, cancellationToken);
@@ -94,14 +96,6 @@ namespace Infrastructure.DistributedCacheService
             GamesGroupsUsersMessages? newUserInGroup = await GetGroupAsync(groupName);
             if(newUserInGroup != null)
             {
-                /*if(newUserInGroup.onlineUsers.TryGetValue(name, out OnlineUsers? originalVal))
-                {
-                    OnlineUsers? nextGroupLeader = originalVal;
-                    nextGroupLeader.groupLeader = true;
-                    newUserInGroup.onlineUsers.TryUpdate(name, nextGroupLeader, originalVal);
-
-                    return nextGroupLeader;
-                }*/
                 UpdateHelper.TryUpdateCustom(newUserInGroup.onlineUsers, originalGroupLeader,
                     x => {
                         x.groupLeader = false;
@@ -182,20 +176,40 @@ namespace Infrastructure.DistributedCacheService
             }
             return group.onlineUsers.Count == 0;
         }
-        /*Task addNewGroupAndFirstUser(GroupsUsersAndMessages groupsUsersAndMessages);
-        Task<GroupsUsersAndMessages> getOneGroup(string groupName);
-        Task<List<OnlineUsers>> getUsersFromOneGroup(string groupName);
-        Task<List<Message>> getMessagesFromOneGroup(string groupName);
-        Task<bool> isGroupEmpty(string groupName);
-        Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name);
-        Task<bool> checkIfGroupIsFull(string groupName);
-        Task<OnlineUsers> getOneUserFromSpecificGroup(string groupName, string? name = "", string? connectionId = "");
-        Task deleteOneUserFromGroup(string groupName, string name);
-        Task addNewMessageIntoGroup(string groupName, Message newMessage);
-        Task addNewUserIntoGroup(string groupName, OnlineUsers onlineUsers);
-        Task<OnlineUsers> getGroupLeaderFromSpecificGroup(string groupName);
-        Task nextFirstUserAssignAsGroupLeader(string groupName);*/
+        public async Task<string> getMaxPlayersInGroup(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group == null)
+            {
+                return "";
+            }
+            return group.maxPlayers.ToString();
+        }
 
-        
+
+        // Game
+        public async Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group == null)
+            {
+                return false;
+            }
+            group.numOfChristans = christans;
+            group.numOfJudaisms = judaisms;
+            List<Identities> identityCards = group.issuedIdentityCards();
+            int i = 0;
+            foreach(string key in group.onlineUsers.Keys)
+            {
+                UpdateHelper.TryUpdateCustom(group.onlineUsers, key,
+                    x => {
+                        x.identity = identityCards[i].ToString();
+                        return x;
+                    });
+                i++;
+            }
+            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            return true;
+        }
     }
 }

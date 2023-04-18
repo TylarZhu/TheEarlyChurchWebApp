@@ -7,6 +7,7 @@ namespace Domain.Interfaces
 {
     public interface ICacheService
     {
+        // Group and Users
         Task<GamesGroupsUsersMessages?> GetGroupAsync(string groupName, CancellationToken cancellationToken = default);
         Task SetNewGroupAsync(string groupName, GamesGroupsUsersMessages value, OnlineUsers groupLeader, CancellationToken cancellationToken = default);
         Task AddNewUsersToGroupAsync(string groupName, OnlineUsers user, CancellationToken cancellationToken = default);
@@ -22,5 +23,9 @@ namespace Domain.Interfaces
         Task<bool> checkIfGroupIsFull(string groupName);
         Task<bool> isGroupEmpty(string groupName);
         Task<OnlineUsers?> assignUserAsGroupLeader(string groupName, string nextGroupLeader, string originalGroupLeader);
+        Task<string> getMaxPlayersInGroup(string groupName);
+
+        // Game
+        Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms);
     }
 }

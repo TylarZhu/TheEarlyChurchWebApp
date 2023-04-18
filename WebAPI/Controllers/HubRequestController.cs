@@ -25,7 +25,7 @@ namespace WebAPI.Controllers
         }
 
         [HttpPost("onlineUser")]
-        public async Task<IActionResult> postAOnlineUser([FromBody] CreateNewUser newUser)
+        public async Task<ActionResult<OnlineUsers>> postAOnlineUser([FromBody] CreateNewUser newUser)
         {
 
             if(!redisCacheService.CheckIfGroupExsits(newUser.groupName) && int.TryParse(newUser.maxPlayerInGroup, out int maxPlayerInGroup))
@@ -58,6 +58,11 @@ namespace WebAPI.Controllers
                      groupLeader.name,
                      newUser.groupName,
                      newUser.maxPlayerInGroup));
+                GamesGroupsUsersMessages? group = await redisCacheService.GetGroupAsync(newUser.groupName);
+                if(group != null)
+                {
+                    await _hub.Clients.Group(newUser.groupName).getMaxPlayersInGroup(group.maxPlayers.ToString());
+                }
             }
             return CreatedAtAction(nameof(postAOnlineUser), new { id = newUser.connectionId }, newUser);
         }
@@ -78,6 +83,18 @@ namespace WebAPI.Controllers
         [HttpGet("checkIfGroupIsFull/{groupName}")]
         public async Task<ActionResult<bool>> getIfGroupIsFull(string groupName) =>
             await redisCacheService.checkIfGroupIsFull(groupName);
+        [HttpGet("GetMaxPlayersInGroup/{groupName}")]
+        public async Task<ActionResult> getMaxPlayersInGroup(string groupName)
+        {
+            string max = await redisCacheService.getMaxPlayersInGroup(groupName);
+            if(string.IsNullOrEmpty(max))
+            {
+                return BadRequest();
+            }
+            /*await _hub.Clients.Client().getMaxPlayersInGroup(max);*/
+            return Ok();
+        }
+            
         [HttpGet("checkIfGroupExists/{groupName}")]
         public async Task<ActionResult<bool>> checkIfGroupExists(string groupName)
         {
@@ -91,13 +108,13 @@ namespace WebAPI.Controllers
             }
         }
         [HttpPost("assignNextGroupLeader/{groupName}/{nextGroupLeader}/{originalGroupLeader}")]
-        public async Task<ActionResult<OnlineUsers>> assignUserAsGroupLeader(string groupName, string nextGroupLeader, string originalGroupLeader)
+        public async Task<ActionResult> assignUserAsGroupLeader(string groupName, string nextGroupLeader, string originalGroupLeader)
         {
             OnlineUsers? groupLeader = await redisCacheService.assignUserAsGroupLeader(groupName, nextGroupLeader, originalGroupLeader);
             if(groupLeader != null)
             {
                 await _hub.Clients.Group(groupName).updateGroupLeader(new CreateNewUser(groupLeader!.connectionId, groupLeader.name, groupName, "0"));
-                return Ok(groupLeader);
+                return Ok();
             }
             return BadRequest();
         }

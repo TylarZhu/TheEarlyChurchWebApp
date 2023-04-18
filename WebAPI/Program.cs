@@ -26,7 +26,7 @@ builder.Services.AddScoped<PlayerGroupsHubBase, PlayerGroupsHub>();
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName = "TheEarlyChurch";
+    options.InstanceName = "GameGroup";
 });
 builder.Services.AddScoped<ICacheService, DistributedCacheService>();
 

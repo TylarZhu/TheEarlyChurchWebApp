@@ -2,6 +2,7 @@
 using Domain.DBEntities;
 using Domain.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
+using MongoDB.Bson.Serialization.IdGenerators;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
 
@@ -10,7 +11,7 @@ namespace Infrastructure.DistributedCacheService
     public class DistributedCacheService: ICacheService
     {
         private readonly IDistributedCache distributedCache;
-        private static readonly ConcurrentDictionary<string, bool> groupNames = new ConcurrentDictionary<string, bool>();
+        private readonly ConcurrentDictionary<string, bool> groupNames = new ConcurrentDictionary<string, bool>();
         public DistributedCacheService(IDistributedCache distributedCache)
         {
             this.distributedCache = distributedCache;
@@ -70,19 +71,22 @@ namespace Infrastructure.DistributedCacheService
                     }
                     else
                     {
+                        
                         OnlineUsers firstUser = newUserInGroup.onlineUsers.First().Value;
-                        firstUser.groupLeader = true;
+                        UpdateHelper.TryUpdateCustom(newUserInGroup.onlineUsers, firstUser.name,
+                            x =>
+                            {
+                                x.groupLeader = true;
+                                return x;
+                            });
+                        await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(newUserInGroup));
+                        /*firstUser.groupLeader = true;
                         if (newUserInGroup.onlineUsers.TryGetValue(firstUser.name, out OnlineUsers? originalVal))
                         {
                             newUserInGroup.onlineUsers.TryUpdate(name, firstUser, originalVal);
-                           /* UpdateHelper.TryUpdateCustom(newUserInGroup.onlineUsers, name, 
-                                x =>
-                                {
-                                    x.groupLeader = true;
-                                    return x;
-                                });*/
+
                             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(newUserInGroup));
-                        }
+                        }*/
                         return removedUser;
                     }
 
@@ -149,6 +153,15 @@ namespace Infrastructure.DistributedCacheService
             }
             return group.onlineUsers.FirstOrDefault(x => x.Value.groupLeader).Value;
         }
+        public async Task<OnlineUsers?> getOneUserFromGroup(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group == null)
+            {
+                return null;
+            }
+            return group.onlineUsers.FirstOrDefault(x => x.Value.name == name).Value;
+        }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -209,6 +222,30 @@ namespace Infrastructure.DistributedCacheService
                 i++;
             }
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            return true;
+        }
+        public async Task<bool> waitOnOtherPlayersActionInGroup(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                if(group.numberofWaitingUser.TryPeek(out int currentWaitingUser))
+                {
+                    if(currentWaitingUser <= 1)
+                    {
+                        group.numberofWaitingUser.Clear();
+                        group.numberofWaitingUser.Add(group.maxPlayers);
+                        await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                        return false;
+                    }
+                    else
+                    {
+                        group.numberofWaitingUser.TryTake(out int _);
+                        group.numberofWaitingUser.Add(-- currentWaitingUser);
+                        await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                    }
+                }
+            }
             return true;
         }
     }

@@ -4,6 +4,7 @@ using Domain.Interfaces;
 using Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Infrastructure.DistributedCacheService;
 
 namespace WebAPI.Controllers
 {
@@ -52,6 +53,28 @@ namespace WebAPI.Controllers
                     return BadRequest();
                 }
                 await _hub.Clients.Client(onlineUser.connectionId).IdentitiesExplanation(ex);
+            }
+            return Ok();
+        }
+        [HttpPost("WaitOnOtherPlayerAction/{groupName}/{playerName}")]
+        public async Task<ActionResult> waitOnOtherPlayerAction(string groupName, string playerName)
+        {
+            bool wait = await redisCacheService.waitOnOtherPlayersActionInGroup(groupName);
+            if (wait)
+            {
+                OnlineUsers? user = await redisCacheService.getOneUserFromGroup(groupName, playerName);
+                if(user != null)
+                {
+                    await _hub.Clients.Client(user.connectionId).waitOnOtherPlayersActionInGroup(true);
+                }
+                else
+                {
+                    return BadRequest();
+                }
+            }
+            else
+            {
+                await _hub.Clients.Group(groupName).waitOnOtherPlayersActionInGroup(false);
             }
             return Ok();
         }

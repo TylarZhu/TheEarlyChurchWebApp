@@ -15,5 +15,6 @@ namespace Domain.HubInterface
         Task updatePlayersIdentities(List<OnlineUsers> onlineUsers);
         Task getMaxPlayersInGroup(string max);
         Task IdentitiesExplanation(List<string> ex);
+        Task waitOnOtherPlayersActionInGroup(bool ex);
     }
 }

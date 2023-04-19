@@ -12,6 +12,7 @@ namespace Domain.DBEntities
         public ConcurrentDictionary<string, OnlineUsers> onlineUsers { get; set; } = new ConcurrentDictionary<string, OnlineUsers>();
         // messages -> unuse info
         public ConcurrentDictionary<string, Message> messages { get; set; } = new ConcurrentDictionary<string, Message>();
+        public ConcurrentBag<int> numberofWaitingUser = new ConcurrentBag<int>();
 
         // game fields
         public int numOfChristans { get; set; } = 0;
@@ -25,6 +26,7 @@ namespace Domain.DBEntities
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
+            numberofWaitingUser.Add(maxPlayers);
         }
 
         public List<Identities> issuedIdentityCards()

@@ -79,7 +79,7 @@ namespace Domain.DBEntities
            
             for(int i = 0; i < onlineUsers.Count; i ++)
             {
-                onlineUsers[i].identity = identities[i].ToString();
+                onlineUsers[i].identity = identities[i];
             }
 
             return onlineUsers;

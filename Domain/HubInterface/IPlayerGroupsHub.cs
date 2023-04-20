@@ -15,6 +15,16 @@ namespace Domain.HubInterface
         Task updatePlayersIdentities(List<OnlineUsers> onlineUsers);
         Task getMaxPlayersInGroup(string max);
         Task IdentitiesExplanation(List<string> ex);
-        Task waitOnOtherPlayersActionInGroup(bool ex);
+
+        /// <summary>
+        /// User who invoke this method finishs the current action and wait for next step.
+        /// </summary>
+        /// <param name="waitingState"> if true, user will be in the loading screen. If False, out of loading screen.</param>
+        /// <param name="nextStep"> specificly discribe that which screen shows to the user.</param>
+        /// <param name="commands"> send payloads to UI to display on screen.</param>
+        /// <returns></returns>
+        Task finishedViewIdentityAndWaitOnOtherPlayers(bool waitingState);
+        Task currentUserInDiscusstion(string waitingState);
+        Task nextStep(NextStep nextStep);
     }
 }

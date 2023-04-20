@@ -1,5 +1,4 @@
-﻿using Domain.Common;
-namespace Domain.Common
+﻿namespace Domain.Common
 {
     public class OnlineUsers
     {
@@ -9,7 +8,7 @@ namespace Domain.Common
         public bool groupLeader { get; set; } = false;
 
         //game fields
-        public string identity { get; set; } = "";
+        public Identities identity { get; set; }
         public double originalVote { get; set; } // 最原始的权重
         public double changedVote { get; set; } // 可以增加可以减少
         public bool johnProtection { get; set; } = false;
@@ -28,36 +27,39 @@ namespace Domain.Common
             this.connectionId = connectionId;
             this.groupLeader = groupLeader;
         }
-        /*switch (this.identity)
+        public void assignOriginalVote()
+        {
+            switch (identity)
             {
                 case Identities.Judas:
-                    this.originalVote = 0.5;
-                    this.check = true;
+                    originalVote = 0.5;
+                    check = true;
                     break;
                 case Identities.Scribes:
-                    this.originalVote = 1;
+                    originalVote = 1;
                     break;
                 case Identities.Pharisee:
-                    this.originalVote = 1;
+                    originalVote = 1;
                     break;
                 case Identities.Judaism:
-                    this.originalVote = 1;
+                    originalVote = 1;
                     break;
                 case Identities.Peter:
-                    this.originalVote = 1.5;
+                    originalVote = 1.5;
                     break;
                 case Identities.John:
-                    this.originalVote = 1.5;
-                    this.johnProtection = true;
+                    originalVote = 1.5;
+                    johnProtection = true;
                     break;
                 case Identities.Laity:
-                    this.originalVote = 1;
+                    originalVote = 1;
                     break;
                 case Identities.Nicodemus:
-                    this.originalVote = 0.5;
-                    this.nicodemusProtection = true;
+                    originalVote = 0.5;
+                    nicodemusProtection = true;
                     break;
-            }*/
-        /*this.changedVote = this.originalVote;*/
+            }
+            changedVote = originalVote;
+        }
     }
 }

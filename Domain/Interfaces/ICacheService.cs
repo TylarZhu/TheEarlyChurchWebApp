@@ -44,5 +44,6 @@ namespace Domain.Interfaces
         // Game
         Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms);
         Task<bool> waitOnOtherPlayersActionInGroup(string groupName);
+        Task<string?> whoIsDiscussingNext(string groupName, string name);
     }
 }

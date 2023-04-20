@@ -5,6 +5,7 @@ using Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Infrastructure.DistributedCacheService;
+using Domain.DBEntities;
 
 namespace WebAPI.Controllers
 {
@@ -56,16 +57,18 @@ namespace WebAPI.Controllers
             }
             return Ok();
         }
-        [HttpPost("WaitOnOtherPlayerAction/{groupName}/{playerName}")]
-        public async Task<ActionResult> waitOnOtherPlayerAction(string groupName, string playerName)
+        [HttpPost("IdentityViewingState/{groupName}/{playerName}")]
+        public async Task<ActionResult> IdentityViewingState(string groupName, string playerName)
         {
             bool wait = await redisCacheService.waitOnOtherPlayersActionInGroup(groupName);
+            // true, then finish view identity and wait for others.
+            // False, then all user finished viewing ready to go to next step.
             if (wait)
             {
                 OnlineUsers? user = await redisCacheService.getOneUserFromGroup(groupName, playerName);
                 if(user != null)
                 {
-                    await _hub.Clients.Client(user.connectionId).waitOnOtherPlayersActionInGroup(true);
+                    await _hub.Clients.Client(user.connectionId).finishedViewIdentityAndWaitOnOtherPlayers(true);
                 }
                 else
                 {
@@ -74,9 +77,44 @@ namespace WebAPI.Controllers
             }
             else
             {
-                await _hub.Clients.Group(groupName).waitOnOtherPlayersActionInGroup(false);
+                await _hub.Clients.Group(groupName).finishedViewIdentityAndWaitOnOtherPlayers(false);
+                await _hub.Clients.Group(groupName).nextStep(new NextStep("discussing", new List<string>()));
             }
             return Ok();
+        }
+
+        [HttpGet("WhoIsDiscussing/{groupName}/{name}")]
+        public async Task whoIsDiscussing(string groupName, string name)
+        {
+            OnlineUsers? currentUser = await redisCacheService.getOneUserFromGroup(groupName, name);
+            // put the one who finished disscuss to wait
+            if(currentUser != null)
+            {
+                string? connectionId = await redisCacheService.whoIsDiscussingNext(groupName, name);
+                // if there is still user who did not discuss
+                if (connectionId != null)
+                {
+                    await _hub.Clients.Client(currentUser.connectionId).currentUserInDiscusstion("FinishDisscussionWaitOthers");
+                    await _hub.Clients.Client(connectionId).currentUserInDiscusstion("InDisscussion");
+                }
+                // all user finish discussing
+                else
+                {
+                    await _hub.Clients.Group(groupName).currentUserInDiscusstion("AllUserFinishDisscussion");
+                    await _hub.Clients.Group(groupName).nextStep(new NextStep("vote", new List<string>()));
+                }
+            }
+            // name = "none", then put all people on wait just first user talking
+            else
+            {
+                string? connectionId = await redisCacheService.whoIsDiscussingNext(groupName, name);
+                
+                if (connectionId != null)
+                {
+                    await _hub.Clients.GroupExcept(groupName, connectionId).currentUserInDiscusstion("FinishDisscussionWaitOthers");
+                    await _hub.Clients.Client(connectionId).currentUserInDiscusstion("InDisscussion");
+                }
+            }
         }
     }
 }

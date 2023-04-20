@@ -41,7 +41,8 @@ namespace Infrastructure.DistributedCacheService
         public async Task SetNewGroupAsync(string groupName, GamesGroupsUsersMessages value, OnlineUsers groupLeader, CancellationToken cancellationToken = default)
         {
             value.onlineUsers.TryAdd(groupLeader.name, groupLeader);
-            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(value), cancellationToken);
+            string saveData = JsonConvert.SerializeObject(value);
+            await distributedCache.SetStringAsync(groupName, saveData, cancellationToken);
             groupNames.TryAdd(groupName, true);
         }
         public async Task AddNewUsersToGroupAsync(string groupName, OnlineUsers user, CancellationToken cancellationToken = default)
@@ -160,7 +161,10 @@ namespace Infrastructure.DistributedCacheService
             {
                 return null;
             }
-            return group.onlineUsers.FirstOrDefault(x => x.Value.name == name).Value;
+            if(group.onlineUsers.TryGetValue(name, out OnlineUsers? users)){
+                return users;
+            }
+            return null;
         }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
         {
@@ -210,16 +214,31 @@ namespace Infrastructure.DistributedCacheService
             }
             group.numOfChristans = christans;
             group.numOfJudaisms = judaisms;
-            List<Identities> identityCards = group.issuedIdentityCards();
-            int i = 0;
-            foreach(string key in group.onlineUsers.Keys)
+            List<Identities>? identityCards = group.issuedIdentityCards();
+            if (identityCards != null) 
             {
-                UpdateHelper.TryUpdateCustom(group.onlineUsers, key,
-                    x => {
-                        x.identity = identityCards[i].ToString();
-                        return x;
-                    });
-                i++;
+                int i = 0;
+                foreach (string key in group.onlineUsers.Keys)
+                {
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, key,
+                        x => {
+                            x.identity = identityCards[i];
+                            x.assignOriginalVote();
+                            
+                            group.totalVotes += x.originalVote;
+                            if (x.identity == Identities.Judaism ||
+                                x.identity == Identities.Judas ||
+                                x.identity == Identities.Pharisee ||
+                                x.identity == Identities.Scribes)
+                            {
+                                group.judaismTotalVote += x.originalVote;
+                            }
+                            return x;
+                        });
+                    i++;
+                }
+
+                
             }
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             return true;
@@ -234,7 +253,10 @@ namespace Infrastructure.DistributedCacheService
                     if(currentWaitingUser <= 1)
                     {
                         group.numberofWaitingUser.Clear();
-                        group.numberofWaitingUser.Add(group.maxPlayers);
+
+                        /*group.numberofWaitingUser.Add(group.maxPlayers);*/
+                        group.numberofWaitingUser.Add(3);
+
                         await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                         return false;
                     }
@@ -247,6 +269,36 @@ namespace Infrastructure.DistributedCacheService
                 }
             }
             return true;
+        }
+
+        public async Task<string?> whoIsDiscussingNext(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                List<string> keys = group.onlineUsers.Keys.ToList();
+                // meaning the disscussion just started, then return the person who is in the first in array will disscuss.
+                if (name == "none")
+                {
+                    if(group.onlineUsers.TryGetValue(keys[0], out OnlineUsers? user))
+                    {
+                        return user.connectionId;
+                    }
+                }
+                // choose the next person to disscuss
+                for (int i = 0; i < keys.Count; i ++)
+                {
+                    if (keys[i] == name && i + 1 < keys.Count)
+                    {
+                        if(group.onlineUsers.TryGetValue(keys[i + 1], out OnlineUsers? user))
+                        {
+                            return user.connectionId;
+                        }
+                    }
+                    // if all users finished talking, then return null
+                }
+            }
+            return null;
         }
     }
 }

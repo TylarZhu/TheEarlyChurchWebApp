@@ -18,18 +18,20 @@ namespace Domain.DBEntities
         public int numOfChristans { get; set; } = 0;
         public int numOfJudaisms { get; set; } = 0;
         public int day { get; set; } = 1;
-        public double judaismLostVote { get; set; } = 0;
-        public double judaismTotalVote { get; set; } = 0;
-        public double totalVotes { get; set; } = 0;
+        public double judaismLostVote { get; set; } = 0.0;
+        public double judaismTotalVote { get; set; } = 0.0;
+        public double christianLostVote { get; set; } = 0.0;
+        public double totalVotes { get; set; } = 0.0;
 
         public GamesGroupsUsersMessages(string groupName, int maxPlayers)
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
-            numberofWaitingUser.Add(maxPlayers);
+            /*numberofWaitingUser.Add(maxPlayers);*/
+            numberofWaitingUser.Add(3);
         }
 
-        public List<Identities> issuedIdentityCards()
+        public List<Identities>? issuedIdentityCards()
         {
             List<Identities> identities = new List<Identities>();
             Random rand = new Random();
@@ -40,7 +42,7 @@ namespace Domain.DBEntities
             identities.Add(Identities.Peter);
             identities.Add(Identities.John);
             identities.Add(Identities.Nicodemus);
-
+            
             if (maxPlayers % 2 != 0)
             {
                 int addChoice = rand.Next(0, 2);
@@ -53,7 +55,6 @@ namespace Domain.DBEntities
                     identities.Add(Identities.Laity);
                 }
             }
-
             for (int i = 0; i < maxPlayers / 2 - 3; i++)
             {
                 identities.Add(Identities.Judaism);
@@ -62,9 +63,6 @@ namespace Domain.DBEntities
             {
                 identities.Add(Identities.Laity);
             }
-
-
-
             for (int i = identities.Count - 1; i > 0; i--)
             {
                 int rad = rand.Next(0, i);
@@ -74,7 +72,6 @@ namespace Domain.DBEntities
             }
 
             return identities;
-            
         }
     }
 }

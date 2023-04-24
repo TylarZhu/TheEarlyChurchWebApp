@@ -12,7 +12,7 @@ namespace Domain.HubInterface
         Task leaveGroupUserConnectionId(string connectionId);
         Task updateGroupLeader(CreateNewUser users);
         Task GameStop();
-        Task updatePlayersIdentities(List<OnlineUsers> onlineUsers);
+        Task updatePlayersIdentities(string identity);
         Task getMaxPlayersInGroup(string max);
         Task IdentitiesExplanation(List<string> ex);
 
@@ -26,5 +26,6 @@ namespace Domain.HubInterface
         Task finishedViewIdentityAndWaitOnOtherPlayers(bool waitingState);
         Task currentUserInDiscusstion(string waitingState);
         Task nextStep(NextStep nextStep);
+        Task finishVoteWaitForOthersOrVoteResult(bool waitingState, string result);
     }
 }

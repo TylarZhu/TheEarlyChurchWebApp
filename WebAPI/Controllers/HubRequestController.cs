@@ -5,7 +5,7 @@ using Domain.DBEntities;
 using Domain.Interfaces;
 using Domain.APIClass;
 using Domain.Common;
-using Infrastructure.DBService;
+using System.Collections.Concurrent;
 
 namespace WebAPI.Controllers
 {
@@ -28,12 +28,13 @@ namespace WebAPI.Controllers
         public async Task<ActionResult<OnlineUsers>> postAOnlineUser([FromBody] CreateNewUser newUser)
         {
 
-            if(!redisCacheService.CheckIfGroupExsits(newUser.groupName) && int.TryParse(newUser.maxPlayerInGroup, out int maxPlayerInGroup))
+            if (await redisCacheService.GetGroupAsync(newUser.groupName) == null && int.TryParse(newUser.maxPlayerInGroup, out int maxPlayerInGroup))
             {
 
                 await redisCacheService.SetNewGroupAsync(newUser.groupName,
                     new GamesGroupsUsersMessages(newUser.groupName, maxPlayerInGroup),
                     new OnlineUsers(newUser.name, newUser.connectionId, true));
+                await redisCacheService.setNewVoteListAsync(newUser.groupName, new ConcurrentDictionary<string, double>());
             }
             else
             {

@@ -17,6 +17,7 @@
         public bool rulerOfTheSynagogue { get; set; } = false;
         public bool check { get; set; } = false;
         public bool inGame { get; set; } = true;
+        // for calculating lost vote weight of christians or judaism.
         public bool disempowering { get; set; } = false;
 
 

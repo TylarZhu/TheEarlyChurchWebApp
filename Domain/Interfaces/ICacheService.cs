@@ -10,6 +10,7 @@ namespace Domain.Interfaces
         // Group and Users (get)
         Task<GamesGroupsUsersMessages?> GetGroupAsync(string groupName, CancellationToken cancellationToken = default);
         Task<List<OnlineUsers>> getAllUsers(string groupName);
+        Task<OnlineUsers?> getFirstUser(string groupName);
         Task<List<Message>> getAllMessagesInGroup(string groupName);
         Task<OnlineUsers?> getGroupLeaderFromGroup(string groupName);
         Task<OnlineUsers?> getOneUserFromGroup(string groupName, string name);
@@ -24,8 +25,7 @@ namespace Domain.Interfaces
 
 
         // Group and Users (remove)
-        Task RemoveAsync(string groupName, CancellationToken cancellationToken = default);
-        Task RemoveByPrefixAsync(string prefixKey, CancellationToken cancellationToken = default);
+        Task RemoveGroupAsync(string groupName, CancellationToken cancellationToken = default);
 
 
         // Group and Users (add)
@@ -34,16 +34,22 @@ namespace Domain.Interfaces
 
 
         // Group and Users (check)
-        bool CheckIfGroupExsits(string groupName);
         Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name);
         Task<bool> checkIfGroupIsFull(string groupName);
         Task<bool> isGroupEmpty(string groupName);
-        
-        
+
+
+        // Vote List
+        Task setNewVoteListAsync(string groupName, ConcurrentDictionary<string, double> newVoteList);
+        Task<ConcurrentDictionary<string, double>?> getVoteList(string groupName);
+        Task removeVoteListAsync(string groupName);
+
+
 
         // Game
         Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms);
         Task<bool> waitOnOtherPlayersActionInGroup(string groupName);
         Task<string?> whoIsDiscussingNext(string groupName, string name);
+        Task<(bool, int)> votePerson(string groupName, string votePerson, string fromWho);
     }
 }

@@ -15,6 +15,8 @@ namespace Domain.Interfaces
         Task<OnlineUsers?> getGroupLeaderFromGroup(string groupName);
         Task<OnlineUsers?> getOneUserFromGroup(string groupName, string name);
         Task<string> getMaxPlayersInGroup(string groupName);
+        Task<OnlineUsers?> getSpecificIdentityFromGroup(string groupName, Identities identity);
+        Task<OnlineUsers?> getPriest(string groupName);
 
 
         // Group and Users (set)
@@ -51,5 +53,12 @@ namespace Domain.Interfaces
         Task<bool> waitOnOtherPlayersActionInGroup(string groupName);
         Task<string?> whoIsDiscussingNext(string groupName, string name);
         Task<(bool, int)> votePerson(string groupName, string votePerson, string fromWho);
+        Task<(bool, int)> whoWins(string groupName);
+        Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName);
+        Task<bool> setExile(string groupName, bool exileState, string exileName = "");
+        Task increaseDay(string groupName);
+        Task changeVote(string groupName, string name = "", Identities? identities = null, double changedVote = 0.0, string option = "");
+        Task NicodemusSetProtection(string groupName, bool protectionStatus);
+       
     }
 }

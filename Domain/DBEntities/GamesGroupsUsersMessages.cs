@@ -11,8 +11,10 @@ namespace Domain.DBEntities
         // name -> player info
         public ConcurrentDictionary<string, OnlineUsers> onlineUsers { get; set; } = new ConcurrentDictionary<string, OnlineUsers>();
         // messages -> unuse info
-        public List <Message> messages { get; set; } = new List<Message>();
+        public List<Message> messages { get; set; } = new List<Message>();
         public ConcurrentBag<int> numberofWaitingUser = new ConcurrentBag<int>();
+
+        public List<string> JohnFireList = new List<string>();
 
         // game fields
         public int numOfChristans { get; set; } = 0;
@@ -27,7 +29,7 @@ namespace Domain.DBEntities
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
-            numberofWaitingUser.Add(3);
+            numberofWaitingUser.Add(4);
             /*numberofWaitingUser.Add(maxPlayers);*/
         }
 
@@ -72,6 +74,39 @@ namespace Domain.DBEntities
             }
 
             return identities;
+        }
+        /// <summary>
+        /// Detect who wins in the current 
+        /// </summary>
+        /// <param name="totalVotes"></param>
+        /// <returns>
+        ///     true, if one of the parties wins the game.
+        ///     false, contiune game.
+        ///     1, christian wins.
+        ///     2, judaism wins.
+        /// </returns>
+        public (bool, int) winCondition()
+        {
+            if (judaismLostVote / judaismTotalVote > 0.5)
+            {
+                Console.BackgroundColor = ConsoleColor.Yellow;
+                Console.ForegroundColor = ConsoleColor.Black;
+                Console.WriteLine("Christian Wins!");
+                Console.ResetColor();
+                return (true, 1);
+            }
+            else if (christianLostVote / totalVotes > 0.35)
+            {
+                Console.BackgroundColor = ConsoleColor.Yellow;
+                Console.ForegroundColor = ConsoleColor.Black;
+                Console.WriteLine("Judaism Wins!");
+                Console.ResetColor();
+                return (true, 2);
+            }
+            else
+            {
+                return (false, 0);
+            }
         }
     }
 }

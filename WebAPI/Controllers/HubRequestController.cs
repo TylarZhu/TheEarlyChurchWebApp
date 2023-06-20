@@ -15,9 +15,7 @@ namespace WebAPI.Controllers
     {
         private readonly IHubContext<PlayerGroupsHubBase, IPlayerGroupsHub> _hub;
         private readonly ICacheService redisCacheService;
-
-        public HubRequestController(IHubContext<PlayerGroupsHubBase, 
-            IPlayerGroupsHub> hub,
+        public HubRequestController(IHubContext<PlayerGroupsHubBase, IPlayerGroupsHub> hub,
             ICacheService redisCacheService)
         {
             _hub = hub;
@@ -27,27 +25,24 @@ namespace WebAPI.Controllers
         [HttpPost("onlineUser")]
         public async Task<ActionResult<OnlineUsers>> postAOnlineUser([FromBody] CreateNewUser newUser)
         {
-
+            // if there is no group, then create a new group and add the user as group leader.
             if (await redisCacheService.GetGroupAsync(newUser.groupName) == null && int.TryParse(newUser.maxPlayerInGroup, out int maxPlayerInGroup))
             {
-
                 await redisCacheService.SetNewGroupAsync(newUser.groupName,
                     new GamesGroupsUsersMessages(newUser.groupName, maxPlayerInGroup),
                     new OnlineUsers(newUser.name, newUser.connectionId, true));
                 await redisCacheService.setNewVoteListAsync(newUser.groupName, new ConcurrentDictionary<string, double>());
             }
+            // if there is group, then just add to the group.
             else
             {
                 await redisCacheService.AddNewUsersToGroupAsync(newUser.groupName, 
                     new OnlineUsers(newUser.name, newUser.connectionId));
             }
-            await redisCacheService.AddNewMessageIntoGroup(newUser.groupName, new Message("system", $"{newUser.name} join {newUser.groupName} group!"));
 
+            // update all other users in group that a new users has just joined.
             await _hub.Clients.Group(newUser.groupName).updateOnlineUserList(
                await redisCacheService.getAllUsers(newUser.groupName));
-
-            await _hub.Clients.Group(newUser.groupName).ReceiveMessages(
-                await redisCacheService.getAllMessagesInGroup(newUser.groupName));
 
             OnlineUsers? groupLeader = await redisCacheService.getGroupLeaderFromGroup(newUser.groupName);
 
@@ -62,6 +57,7 @@ namespace WebAPI.Controllers
                 GamesGroupsUsersMessages? group = await redisCacheService.GetGroupAsync(newUser.groupName);
                 if(group != null)
                 {
+                    // display the maximum player on every users' UI
                     await _hub.Clients.Group(newUser.groupName).getMaxPlayersInGroup(group.maxPlayers.ToString());
                 }
             }
@@ -95,7 +91,6 @@ namespace WebAPI.Controllers
             /*await _hub.Clients.Client().getMaxPlayersInGroup(max);*/
             return Ok();
         }
-            
         [HttpGet("checkIfGroupExists/{groupName}")]
         public async Task<ActionResult<bool>> checkIfGroupExists(string groupName)
         {
@@ -126,12 +121,10 @@ namespace WebAPI.Controllers
             if (leaveUser != null)
             {
                 await _hub.Clients.Group(groupName).updateOnlineUserList(
-                await redisCacheService.getAllUsers(groupName));
+                    await redisCacheService.getAllUsers(groupName));
 
-                await redisCacheService.AddNewMessageIntoGroup(groupName, new Message("system", $"{userName} has leave {groupName} group!"));
-                await _hub.Clients.Group(groupName).ReceiveMessages(
-                    await redisCacheService.getAllMessagesInGroup(groupName));
-
+                // if the group is not empty and the current leaving user is the group leader,
+                // then update the next group leader to all users.
                 if (!await redisCacheService.isGroupEmpty(groupName) && leaveUser.groupLeader)
                 {
                     OnlineUsers? onlineUser = await redisCacheService.getGroupLeaderFromGroup(groupName);

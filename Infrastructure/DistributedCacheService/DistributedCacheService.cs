@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using MongoDB.Bson.Serialization.IdGenerators;
 using Newtonsoft.Json;
 using System.Collections.Concurrent;
+using System.Security.Principal;
 using System.Threading;
 
 namespace Infrastructure.DistributedCacheService
@@ -62,27 +63,21 @@ namespace Infrastructure.DistributedCacheService
                     else
                     {
                         
-                        OnlineUsers firstUser = newUserInGroup.onlineUsers.First().Value;
-                        UpdateHelper.TryUpdateCustom(newUserInGroup.onlineUsers, firstUser.name,
-                            x =>
-                            {
-                                x.groupLeader = true;
-                                return x;
-                            });
-                        await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(newUserInGroup));
-                        /*firstUser.groupLeader = true;
-                        if (newUserInGroup.onlineUsers.TryGetValue(firstUser.name, out OnlineUsers? originalVal))
+                        OnlineUsers? firstUser = newUserInGroup.onlineUsers.Values.FirstOrDefault();
+                        if (firstUser != null)
                         {
-                            newUserInGroup.onlineUsers.TryUpdate(name, firstUser, originalVal);
-
+                            UpdateHelper.TryUpdateCustom(newUserInGroup.onlineUsers, firstUser.name,
+                                x =>
+                                {
+                                    x.groupLeader = true;
+                                    return x;
+                                });
                             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(newUserInGroup));
-                        }*/
-                        return removedUser;
+                            return removedUser;
+                        }
                     }
-
                 }
             }
-            
             return null;
         }
         public async Task<OnlineUsers?> assignUserAsGroupLeader(string groupName, string nextGroupLeader, string originalGroupLeader)
@@ -165,6 +160,19 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        public async Task<OnlineUsers?> getSpecificIdentityFromGroup(string groupName, Identities identity)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                ICollection<OnlineUsers> users = group.onlineUsers.Values;
+                var a = from user in users
+                        where user.identity == identity
+                        select user;
+                return a.FirstOrDefault();
+            }
+            return null;
+        }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -200,6 +208,15 @@ namespace Infrastructure.DistributedCacheService
                 return "";
             }
             return group.maxPlayers.ToString();
+        }
+        public async Task<OnlineUsers?> getPriest(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                return group.onlineUsers.Values.FirstOrDefault(x => x.priest);
+            }
+            return null;
         }
 
 
@@ -244,7 +261,7 @@ namespace Infrastructure.DistributedCacheService
                     UpdateHelper.TryUpdateCustom(group.onlineUsers, key,
                         x => {
                             x.identity = identityCards[i];
-                            x.assignOriginalVote();
+                            x.assignOriginalVoteAndAbility();
                             
                             group.totalVotes += x.originalVote;
                             if (x.identity == Identities.Judaism ||
@@ -425,6 +442,168 @@ namespace Infrastructure.DistributedCacheService
             }
             return (false, 0);
         }
+        public async Task<(bool, int)> whoWins(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                return group.winCondition();
+            }
+            return (false, -1);
+        }
+        public async Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                Random rand = new Random();
+                OnlineUsers? priest, rulerOfTheSynagogue;
+                // assign priest
+                if (rand.Next(0, 2) == 1)
+                {
+                    priest = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Scribes);
+                    rulerOfTheSynagogue = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Pharisee);
+                }
+                else
+                {
+                    priest = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Pharisee);
+                    rulerOfTheSynagogue = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Scribes);
+                }
+                // avoid duplicate assign.
+                // if the user already assigned as priest or rulerOfTheSynagogue before,
+                // then avoid to be assigned again.
+                if (priest != null && rulerOfTheSynagogue != null && 
+                    !(priest.priest || priest.rulerOfTheSynagogue))
+                {
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, priest.name,
+                        x =>
+                        {
+                            x.priest = true;
+                            return x;
+                        });
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, rulerOfTheSynagogue.name,
+                        x =>
+                        {
+                            x.rulerOfTheSynagogue = true;
+                            return x;
+                        });
+                    group.messages.Add(new Message("game", $"{priest.name} is the Priest in this game! "));
+                    group.messages.Add(new Message("game", $"{rulerOfTheSynagogue.name} is the Ruler Of The Synagogue in this game!"));
+                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                    return new List<OnlineUsers> { priest, rulerOfTheSynagogue };
+                }
+                else
+                {
+                    return new List<OnlineUsers>();
+                }
+            }
+            return null;
+        }
+        public async Task<bool> setExile(string groupName, bool exileStat, string exileName = "")
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                if(string.IsNullOrEmpty(exileName))
+                {
+                    OnlineUsers? user = group.onlineUsers.Values.FirstOrDefault(x => x.aboutToExile);
+                    if (user != null)
+                    {
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
+                            x =>
+                            {
+                                x.aboutToExile = exileStat;
+                                return x;
+                            });
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, exileName,
+                        x =>
+                        {
+                            x.aboutToExile = exileStat;
+                            return x;
+                        });
+                }
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                return true;
+            }
+            return false;
+        }
+        public async Task increaseDay(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.day++;
+            }
+            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+        }
+        public async Task changeVote(string groupName, string name = "", Identities? identities = null, double changedVote = 0.0, string option = "")
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                OnlineUsers? changeVoteUser = null;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    changeVoteUser = await getOneUserFromGroup(groupName, name);
+                }
+                if (identities != null)
+                {
+                    changeVoteUser = await getSpecificIdentityFromGroup(groupName, identities.Value);
+                }
+                if (changeVoteUser != null)
+                {
+                    if (option == "setZero")
+                    {
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteUser.name,
+                            x => {
+                                x.changedVote = 0;
+                                return x;
+                            });
+                    }
+                    else if (option == "half")
+                    {
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteUser.name,
+                            x => {
+                                x.changedVote /= 2;
+                                return x;
+                            });
+                    }
+                    else
+                    {
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteUser.name,
+                            x => {
+                                x.changedVote = changedVote;
+                                return x;
+                            });
+                    }
+                }
+            }
+            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+        }
+        public async Task NicodemusSetProtection(string groupName, bool protectionStatus)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            OnlineUsers? user = await getSpecificIdentityFromGroup(groupName, Identities.Nicodemus);
+            if (user != null && group != null)
+            {
+                UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
+                    x => {
+                        x.nicodemusProtection = protectionStatus;
+                        return x;
+                    });
+            }
+            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+        }
+
+        //private methods
         private void updateVote(GamesGroupsUsersMessages group, string votePerson, string fromWho,
             ConcurrentDictionary<string, double> voteList)
         {

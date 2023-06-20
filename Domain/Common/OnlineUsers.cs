@@ -2,23 +2,36 @@
 {
     public class OnlineUsers
     {
-        // group fields
+        // ------------ //
+        // group fields //
+        // ------------ //
         public string connectionId { get; set; } = null!;
         public string name { get; set; } = null!;
         public bool groupLeader { get; set; } = false;
 
-        //game fields
+        // ------------ //
+        // game fields  //
+        // ------------ //
         public Identities identity { get; set; }
-        public double originalVote { get; set; } // 最原始的权重
-        public double changedVote { get; set; } // 可以增加可以减少
+
+        // originial vote is used to calculate lost vote for winning condition.
+        public double originalVote { get; set; }
+
+        // vote can be changed due to user's ability or day meetings
+        public double changedVote { get; set; }
         public bool johnProtection { get; set; } = false;
         public bool nicodemusProtection { get; set; } = false;
         public bool priest { get; set; } = false;
         public bool rulerOfTheSynagogue { get; set; } = false;
-        public bool check { get; set; } = false;
+
+        public bool judasCheck { get; set; } = false;
         public bool inGame { get; set; } = true;
-        // for calculating lost vote weight of christians or judaism.
+
+        // for calculating lost vote weight of christians or judaism. (avoid duplicate lost vote)
         public bool disempowering { get; set; } = false;
+
+        // set true, if the priest is going to exile this user. Remember to set to false, once Nicodemus round passed. 
+        public bool aboutToExile { get; set; } = false;
 
 
         public OnlineUsers(string name, string connectionId, bool groupLeader = false)
@@ -28,13 +41,13 @@
             this.connectionId = connectionId;
             this.groupLeader = groupLeader;
         }
-        public void assignOriginalVote()
+        public void assignOriginalVoteAndAbility()
         {
             switch (identity)
             {
                 case Identities.Judas:
                     originalVote = 0.5;
-                    check = true;
+                    judasCheck = true;
                     break;
                 case Identities.Scribes:
                     originalVote = 1;

@@ -27,5 +27,8 @@ namespace Domain.HubInterface
         Task currentUserInDiscusstion(string waitingState);
         Task nextStep(NextStep nextStep);
         Task finishVoteWaitForOthersOrVoteResult(bool waitingState, string result);
+        Task PriestRound(bool status, string priestName);
+        Task AssignRulerOfTheSynagogue(bool status);
+        Task priestExileRoundFinish();
     }
 }

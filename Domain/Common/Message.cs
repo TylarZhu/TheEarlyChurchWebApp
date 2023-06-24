@@ -2,12 +2,6 @@
 {
     public class Message
     {
-        public string type { get; set; }
-        public string message { get; set; }
-        public Message(string type, string message)
-        {
-            this.type = type;
-            this.message = message;
-        }
+        public Dictionary<int, List<string>> message { get; set; } = new Dictionary<int, List<string>>();
     }
 }

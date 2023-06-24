@@ -8,7 +8,7 @@ namespace Infrastructure.DistributedCacheService
         public static bool TryUpdateCustom<TKey, TValue>(
             this ConcurrentDictionary<TKey, TValue> dict,
             TKey key,
-            Func<TValue, TValue> updateFactory)
+            Func<TValue, TValue> updateFactory) where TKey : class
         {
             while (dict.TryGetValue(key, out TValue? curValue))
             {

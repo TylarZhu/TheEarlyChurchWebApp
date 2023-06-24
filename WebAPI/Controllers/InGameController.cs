@@ -8,6 +8,8 @@ using Infrastructure.DistributedCacheService;
 using Domain.DBEntities;
 using MongoDB.Driver.Core.Connections;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
+using System.Globalization;
 
 namespace WebAPI.Controllers
 {
@@ -74,7 +76,7 @@ namespace WebAPI.Controllers
             else
             {
                 await _hub.Clients.Group(groupName).finishedViewIdentityAndWaitOnOtherPlayers(false);
-                await _hub.Clients.Group(groupName).nextStep(new NextStep("discussing", new List<string>()));
+                await _hub.Clients.Group(groupName).nextStep(new NextStep("discussing"));
                 await whoIsDiscussing(groupName);
             }
             return Ok();
@@ -100,7 +102,7 @@ namespace WebAPI.Controllers
                 else
                 {
                     await _hub.Clients.Group(groupName).currentUserInDiscusstion("AllUserFinishDisscussion");
-                    await _hub.Clients.Group(groupName).nextStep(new NextStep("vote", new List<string>()));
+                    await _hub.Clients.Group(groupName).nextStep(new NextStep("vote"));
                     return Ok();
                 }
             }
@@ -146,10 +148,10 @@ namespace WebAPI.Controllers
                 }
                 if(group != null)
                 {
+                    await _hub.Clients.Group(groupName).nextStep(new NextStep("SetUserToNightWaiting"));
                     // if it is the first day night, then assign the prist and ROTS
                     if (group.day == 1)
                     {
-                        await _hub.Clients.Group(groupName).nextStep(new NextStep("SetUserToNightWaiting", new List<string>()));
                         await assignPriestAndRulerOfTheSynagogue(groupName);
                     }
                     // if not, then it is the ROTS's round. 
@@ -157,33 +159,6 @@ namespace WebAPI.Controllers
                     {
                         /*await _hub.Clients.Group(groupName).nextStep(new NextStep("RulerofTheSynagogueInformation", new List<string>()));*/
                     }
-                    /*(bool, int) whoWins = await redisCacheService.whoWins(groupName);
-                    if(whoWins.Item1)
-                    {
-                        if(whoWins.Item2 == 1)
-                        {
-                            await _hub.Clients.Group(groupName).nextStep(new NextStep("Wins", new List<string>(){ "ChristianWins" }));
-                        }
-                        else if(whoWins.Item2 == 2)
-                        {
-                            await _hub.Clients.Group(groupName).nextStep(new NextStep("Wins", new List<string>(){ "JudaismWins" }));
-                        }
-                        else
-                        {
-                            return BadRequest("(voteHimOrHer) whoWins error.");
-                        }
-                    }
-                    else
-                    {
-                        if (group.day == 1)
-                        {
-                            await _hub.Clients.Group(groupName).nextStep(new NextStep("AssignPristAndRulerofTheSynagogue", new List<string>()));
-                        }
-                        else
-                        {
-                            await _hub.Clients.Group(groupName).nextStep(new NextStep("RulerofTheSynagogueInformation", new List<string>()));
-                        }
-                    }*/
                 }
                 else
                 {
@@ -293,32 +268,93 @@ namespace WebAPI.Controllers
         // ---------------------- //
         // John actions and round //
         // ---------------------- //
-        [HttpPut("JohnFireRound/{groupName}/{fireName}")]
-        public async Task<ActionResult> JohnFireRoundBegin(string groupName, string fireName = "")
+        // didUserChoose is true and fireName = "" that means John did not choose to fire
+        [HttpPut("JohnFireRound/{groupName}/{fireName}/{didUserChoose}")]
+        public async Task<ActionResult> JohnFireRoundBegin(string groupName, string fireName = "", bool didUserChoose = false)
         {
             OnlineUsers? John = await redisCacheService.getSpecificIdentityFromGroup(groupName, Identities.John);
             if(John != null)
             {
-                if(John.inGame)
+                // if John is in game and he did not fire all the user, then proceed to John's turn.
+                if(John.inGame && !await redisCacheService.checkJohnFireAllOrNot(groupName))
                 {
-                    if(string.IsNullOrEmpty(fireName))
+                    // if this method is invoked by the progarm, then let the user to choose.
+                    if(!didUserChoose)
                     {
-                        await _hub.Clients.Client(John.connectionId).nextStep(new NextStep("JohnFireRound", new List<string>()));
+                        List<string>? list = await redisCacheService.GetJohnCannotFireList(groupName);
+                        if(list != null)
+                        {
+                            list.Add(John.name);
+                            await _hub.Clients.Client(John.connectionId).nextStep(new NextStep("JohnFireRound", list));
+                        }
                     }
                     else
                     {
-                        await redisCacheService.changeVote(groupName, name: fireName, option: "half");
+                        if(!string.IsNullOrEmpty(fireName) && !John.disempowering)
+                        {
+                            await redisCacheService.changeVote(groupName, name: fireName, option: "half");
+                            await redisCacheService.AddToJohnFireList(groupName, fireName);
+                        }
+                        await _hub.Clients.Client(John.connectionId).nextStep(new NextStep("SetUserToNightWaiting"));
                     }
                 }
-                else
-                {
-                    /*await JudasCheckRound(groupName);*/
-                }
+                await JudasCheckRound(groupName);
                 return Ok();
             }
             return NoContent();
         }
 
-        
+        // ----------------------- //
+        // Judas actions and round //
+        // ----------------------- //
+        [HttpPut("JudasCheckRound/{groupName}/{checkName}")]
+        public async Task<ActionResult> JudasCheckRound(string groupName, string checkName = "")
+        {
+            OnlineUsers? Judas = await redisCacheService.getSpecificIdentityFromGroup(groupName, Identities.Judas);
+            if (Judas != null)
+            {
+                if(Judas.inGame)
+                {
+                    if (string.IsNullOrEmpty(checkName))
+                    {
+                        await _hub.Clients.Client(Judas.connectionId).nextStep(new NextStep("JudasCheckRound", new List<string>() { Judas.name }));
+                    }
+                    else
+                    {
+                        if(Judas.disempowering)
+                        {
+                            await _hub.Clients.Client(Judas.connectionId).JudasCheckResult(false);
+                        }
+                        else
+                        {
+                            await _hub.Clients.Client(Judas.connectionId).JudasCheckResult(
+                                await redisCacheService.JudasCheck(groupName, checkName));
+                        }
+                    }
+                }
+                return Ok();
+            }
+            return BadRequest();
+        }
+
+        [HttpPut("Daylight/{groupName}")]
+        public async Task<ActionResult> Daylight(string groupName)
+        {
+            await redisCacheService.increaseDay(groupName);
+            OnlineUsers? user = await redisCacheService.checkIfAnyoneOutOfGame(groupName);
+            await redisCacheService.PeterIncreaseVoteWeightByOneOrNot(groupName);
+            await _hub.Clients.Group(groupName).nextStep(new NextStep("quitNightWaiting"));
+            if (user != null)
+            {
+                await _hub.Clients.Group(groupName).updateExiledUsers(
+                    await redisCacheService.collectAllExiledUserName(groupName));
+                await _hub.Clients.Group(groupName).announceExile(user.name);
+            }
+            else
+            {
+                await _hub.Clients.Group(groupName).announceExile("No one");
+            }
+            return Ok();
+        }
     }
 }

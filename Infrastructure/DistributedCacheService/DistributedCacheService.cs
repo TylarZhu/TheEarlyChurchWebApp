@@ -121,23 +121,25 @@ namespace Infrastructure.DistributedCacheService
             }
             return group.onlineUsers.Values.FirstOrDefault();
         }
-        public async Task AddNewMessageIntoGroup(string groupName, Message message)
+        public void AddNewMessageIntoGroup(GamesGroupsUsersMessages group, string message)
         {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if(group != null)
+            if(group.history.message.ContainsKey(group.day))
             {
-                group.messages.Add(message);
-                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                group.history.message[group.day].Add(message);
+            }
+            else
+            {
+                group.history.message[group.day] = new List<string> { message };
             }
         }
-        public async Task<List<Message>> getAllMessagesInGroup(string groupName)
+        public async Task<Dictionary<int, List<string>>?> getAllMessagesInGroup(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group == null)
             {
-                return new List<Message> { };
+                return null;
             }
-            return group.messages;
+            return group.history.message;
         }
         public async Task<OnlineUsers?> getGroupLeaderFromGroup(string groupName)
         {
@@ -393,36 +395,23 @@ namespace Infrastructure.DistributedCacheService
                                 equalVoteMessage = equalVoteMessage + name + " ";
                             }
                             equalVoteMessage += "have same amount of vote!";
-                            group.messages.Add(new Message("game", equalVoteMessage));
+                            AddNewMessageIntoGroup(group, equalVoteMessage);
                             returnType = 3;
                         }
                         // someone lost vote weight
-                        else
+                        else if (group.onlineUsers.TryGetValue(voteHighestPerson.Item1, out OnlineUsers? users) && !users.disempowering)
                         {
                             // update lost vote
-                            if (group.onlineUsers.TryGetValue(voteHighestPerson.Item1, out OnlineUsers? users) && !users.disempowering)
-                            {
-                                if (users.identity == Identities.Laity ||
-                                    users.identity == Identities.Nicodemus ||
-                                    users.identity == Identities.John ||
-                                    users.identity == Identities.Peter)
-                                {
-                                    group.christianLostVote += users.originalVote;
-                                    returnType = 1;
-                                }
-                                else
-                                {
-                                    group.judaismLostVote += users.originalVote;
-                                    returnType = 2;
-                                }
-                                group.messages.Add(new Message("game", $"{users.name} has been vote out on Day {group.day}!"));
-                            }
-                            UpdateHelper.TryUpdateCustom(group.onlineUsers, voteHighestPerson.Item1, 
-                                x => {
-                                    x.changedVote = 0;
-                                    x.disempowering = true;
-                                    return x;
-                                });
+                            returnType = addLostVote(group, users);
+
+                            AddNewMessageIntoGroup(group, $"{users.name} has been vote out on Day {group.day}!");
+                            UpdateHelper.TryUpdateCustom(group.onlineUsers, voteHighestPerson.Item1,
+                            x => {
+                                x.changedVote = 0;
+                                x.disempowering = true;
+                                return x;
+                            });
+                            
                         }
                         group.numberofWaitingUser.Clear();
                         voteList.Clear();
@@ -487,8 +476,8 @@ namespace Infrastructure.DistributedCacheService
                             x.rulerOfTheSynagogue = true;
                             return x;
                         });
-                    group.messages.Add(new Message("game", $"{priest.name} is the Priest in this game! "));
-                    group.messages.Add(new Message("game", $"{rulerOfTheSynagogue.name} is the Ruler Of The Synagogue in this game!"));
+                    AddNewMessageIntoGroup(group, $"{priest.name} is the Priest in this game! ");
+                    AddNewMessageIntoGroup(group, $"{rulerOfTheSynagogue.name} is the Ruler Of The Synagogue in this game!");
                     await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     return new List<OnlineUsers> { priest, rulerOfTheSynagogue };
                 }
@@ -544,25 +533,39 @@ namespace Infrastructure.DistributedCacheService
             }
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
         }
+        /// <summary>
+        /// Set changed vote for current user. The user should have either name or identity.
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="name"></param>
+        /// <param name="identities"></param>
+        /// <param name="changedVote"></param>
+        /// <param name="option"></param>
+        /// <returns></returns>
         public async Task changeVote(string groupName, string name = "", Identities? identities = null, double changedVote = 0.0, string option = "")
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if(group != null)
             {
-                OnlineUsers? changeVoteUser = null;
+                string changeVoteName = "";
+                OnlineUsers? user;
                 if (!string.IsNullOrEmpty(name))
                 {
-                    changeVoteUser = await getOneUserFromGroup(groupName, name);
+                    changeVoteName = name;
                 }
-                if (identities != null)
+                else
                 {
-                    changeVoteUser = await getSpecificIdentityFromGroup(groupName, identities.Value);
+                    user = await getSpecificIdentityFromGroup(groupName, identities!.Value);
+                    if(user != null)
+                    {
+                        changeVoteName = user.name;
+                    }
                 }
-                if (changeVoteUser != null)
+                if (changeVoteName != null)
                 {
                     if (option == "setZero")
                     {
-                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteUser.name,
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteName,
                             x => {
                                 x.changedVote = 0;
                                 return x;
@@ -570,7 +573,7 @@ namespace Infrastructure.DistributedCacheService
                     }
                     else if (option == "half")
                     {
-                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteUser.name,
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteName,
                             x => {
                                 x.changedVote /= 2;
                                 return x;
@@ -578,7 +581,7 @@ namespace Infrastructure.DistributedCacheService
                     }
                     else
                     {
-                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteUser.name,
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, changeVoteName,
                             x => {
                                 x.changedVote = changedVote;
                                 return x;
@@ -602,6 +605,131 @@ namespace Infrastructure.DistributedCacheService
             }
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
         }
+        public async Task<List<string>?> GetJohnCannotFireList(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                return group.JohnFireList;
+            }
+            return null;
+        }
+        public async Task<bool> checkJohnFireAllOrNot(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                // plus one because we need to cound John himself
+                return group.JohnFireList.Count + 1 >= group.onlineUsers.Count;
+            }
+            return false;
+        }
+        public async Task AddToJohnFireList(string groupName, string fireName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.JohnFireList.Add(fireName);
+                AddNewMessageIntoGroup(group, $"John fire {fireName}!");
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task<bool> JudasCheck(string groupName, string checkName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            bool flag = false;
+            if (group != null)
+            {
+                AddNewMessageIntoGroup(group, $"Judas check {checkName}!");
+                if (group.onlineUsers.TryGetValue(checkName, out OnlineUsers? checkUser))
+                {
+                    if(checkUser != null)
+                    {
+                        if (checkUser.identity == Identities.John ||
+                            checkUser.identity == Identities.Peter ||
+                            checkUser.identity == Identities.Laity ||
+                            checkUser.identity == Identities.Nicodemus)
+                        {
+                            flag = true;
+                        }
+                    }
+                }
+            }
+            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            return flag;
+        }
+        public async Task<OnlineUsers?> checkIfAnyoneOutOfGame(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                OnlineUsers? user = group.onlineUsers.Values.FirstOrDefault(x => x.aboutToExile);
+                if(user != null)
+                {
+                    if(user.identity == Identities.Peter)
+                    {
+                        OnlineUsers? John = await getSpecificIdentityFromGroup(groupName, Identities.John);
+                        if(John != null && John.johnProtection)
+                        {
+                            UpdateHelper.TryUpdateCustom(group.onlineUsers, John.name,
+                               x => {
+                                   x.johnProtection = false;
+                                   return x;
+                               });
+                            AddNewMessageIntoGroup(group, "John protect Peter! Peter did not exiled.");
+                            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                            return null;
+                        }
+                    }
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
+                    x => {
+                        x.aboutToExile = false;
+                        x.inGame = false;
+                        return x;
+                    });
+                    addLostVote(group, user);
+                    AddNewMessageIntoGroup(group, $"{user.name} has been exiled! His/her identity is {user.identity}!");
+                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                    return user;
+                }
+            }
+            return null;
+        }
+        public async Task PeterIncreaseVoteWeightByOneOrNot(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null && group.day == 3)
+            {
+                OnlineUsers? Peter = await getSpecificIdentityFromGroup(groupName, Identities.Peter);
+                if(Peter != null && Peter.inGame)
+                {
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, Peter.name,
+                        x =>
+                        {
+                            x.changedVote += 1;
+                            return x;
+                        });
+                    AddNewMessageIntoGroup(group, "It is day 3, Peter's vote weight increase by 1!");
+                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                }
+            }
+        }
+        public async Task<List<string>> collectAllExiledUserName(string groupName)
+        {
+            List<string> usersList = new List<string>();
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if(group != null)
+            {
+                foreach(KeyValuePair<string, OnlineUsers> user in group.onlineUsers)
+                {
+                    if(!user.Value.inGame)
+                    {
+                        usersList.Add(user.Key);
+                    }
+                }
+            }
+            return usersList;
+        }
 
         //private methods
         private void updateVote(GamesGroupsUsersMessages group, string votePerson, string fromWho,
@@ -622,6 +750,26 @@ namespace Infrastructure.DistributedCacheService
                     voteList.TryAdd(votePerson, fromWhoUser.changedVote);
                 }
             }
+        }
+        private int addLostVote(GamesGroupsUsersMessages group, OnlineUsers users)
+        {
+            int returnType;
+            // update lost vote
+            if (users.identity == Identities.Laity ||
+                users.identity == Identities.Nicodemus ||
+                users.identity == Identities.John ||
+                users.identity == Identities.Peter)
+            {
+                group.christianLostVote += users.originalVote;
+                returnType = 1;
+            }
+            else
+            {
+                group.judaismLostVote += users.originalVote;
+                returnType = 2;
+            }
+
+            return returnType;
         }
     }
 }

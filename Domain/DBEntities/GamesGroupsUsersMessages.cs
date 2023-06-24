@@ -11,9 +11,11 @@ namespace Domain.DBEntities
         // name -> player info
         public ConcurrentDictionary<string, OnlineUsers> onlineUsers { get; set; } = new ConcurrentDictionary<string, OnlineUsers>();
         // messages -> unuse info
-        public List<Message> messages { get; set; } = new List<Message>();
+        public Message history { get; set; } = new Message();
         public ConcurrentBag<int> numberofWaitingUser = new ConcurrentBag<int>();
 
+        // this is for John's ability, which he cannot fire duplicate person.
+        // be aware that this array does not contain John himself.
         public List<string> JohnFireList = new List<string>();
 
         // game fields
@@ -29,8 +31,7 @@ namespace Domain.DBEntities
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
-            numberofWaitingUser.Add(4);
-            /*numberofWaitingUser.Add(maxPlayers);*/
+            numberofWaitingUser.Add(maxPlayers);
         }
 
         public List<Identities>? issuedIdentityCards()
@@ -86,21 +87,13 @@ namespace Domain.DBEntities
         ///     2, judaism wins.
         /// </returns>
         public (bool, int) winCondition()
-        {
+        { 
             if (judaismLostVote / judaismTotalVote > 0.5)
             {
-                Console.BackgroundColor = ConsoleColor.Yellow;
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.WriteLine("Christian Wins!");
-                Console.ResetColor();
                 return (true, 1);
             }
             else if (christianLostVote / totalVotes > 0.35)
             {
-                Console.BackgroundColor = ConsoleColor.Yellow;
-                Console.ForegroundColor = ConsoleColor.Black;
-                Console.WriteLine("Judaism Wins!");
-                Console.ResetColor();
                 return (true, 2);
             }
             else

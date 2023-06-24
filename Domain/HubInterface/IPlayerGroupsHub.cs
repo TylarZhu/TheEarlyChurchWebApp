@@ -30,5 +30,8 @@ namespace Domain.HubInterface
         Task PriestRound(bool status, string priestName);
         Task AssignRulerOfTheSynagogue(bool status);
         Task priestExileRoundFinish();
+        Task JudasCheckResult(bool status);
+        Task updateExiledUsers(List<string> userNames);
+        Task announceExile(string name);
     }
 }

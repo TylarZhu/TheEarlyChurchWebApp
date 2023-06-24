@@ -28,6 +28,7 @@
         public bool inGame { get; set; } = true;
 
         // for calculating lost vote weight of christians or judaism. (avoid duplicate lost vote)
+        // as well as check if some identities has the ability to get correct result.
         public bool disempowering { get; set; } = false;
 
         // set true, if the priest is going to exile this user. Remember to set to false, once Nicodemus round passed. 

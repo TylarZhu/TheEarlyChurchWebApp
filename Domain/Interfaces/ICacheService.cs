@@ -11,7 +11,7 @@ namespace Domain.Interfaces
         Task<GamesGroupsUsersMessages?> GetGroupAsync(string groupName, CancellationToken cancellationToken = default);
         Task<List<OnlineUsers>> getAllUsers(string groupName);
         Task<OnlineUsers?> getFirstUser(string groupName);
-        Task<List<Message>> getAllMessagesInGroup(string groupName);
+        Task<Dictionary<int, List<string>>?> getAllMessagesInGroup(string groupName);
         Task<OnlineUsers?> getGroupLeaderFromGroup(string groupName);
         Task<OnlineUsers?> getOneUserFromGroup(string groupName, string name);
         Task<string> getMaxPlayersInGroup(string groupName);
@@ -32,7 +32,7 @@ namespace Domain.Interfaces
 
         // Group and Users (add)
         Task AddNewUsersToGroupAsync(string groupName, OnlineUsers user, CancellationToken cancellationToken = default);
-        Task AddNewMessageIntoGroup(string groupName, Message message);
+        void AddNewMessageIntoGroup(GamesGroupsUsersMessages group, string message);
 
 
         // Group and Users (check)
@@ -59,6 +59,12 @@ namespace Domain.Interfaces
         Task increaseDay(string groupName);
         Task changeVote(string groupName, string name = "", Identities? identities = null, double changedVote = 0.0, string option = "");
         Task NicodemusSetProtection(string groupName, bool protectionStatus);
-       
+        Task<List<string>?> GetJohnCannotFireList(string groupName);
+        Task<bool> checkJohnFireAllOrNot(string groupName);
+        Task AddToJohnFireList(string groupName, string fireName);
+        Task<bool> JudasCheck(string groupName, string checkName);
+        Task<OnlineUsers?> checkIfAnyoneOutOfGame(string groupName);
+        Task PeterIncreaseVoteWeightByOneOrNot(string groupName);
+        Task<List<string>> collectAllExiledUserName(string groupName);
     }
 }

@@ -399,7 +399,7 @@ namespace Infrastructure.DistributedCacheService
                             returnType = 3;
                         }
                         // someone lost vote weight
-                        else if (group.onlineUsers.TryGetValue(voteHighestPerson.Item1, out OnlineUsers? users) && !users.disempowering)
+                        else if (group.onlineUsers.TryGetValue(voteHighestPerson.Item1, out OnlineUsers? users) && users != null)
                         {
                             // update lost vote
                             returnType = addLostVote(group, users);
@@ -760,12 +760,18 @@ namespace Infrastructure.DistributedCacheService
                 users.identity == Identities.John ||
                 users.identity == Identities.Peter)
             {
-                group.christianLostVote += users.originalVote;
+                if(!users.disempowering)
+                {
+                    group.christianLostVote += users.originalVote;
+                }
                 returnType = 1;
             }
             else
             {
-                group.judaismLostVote += users.originalVote;
+                if(!users.disempowering)
+                {
+                    group.judaismLostVote += users.originalVote;
+                }
                 returnType = 2;
             }
 

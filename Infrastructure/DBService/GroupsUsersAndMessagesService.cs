@@ -7,8 +7,6 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Domain.Common;
-using System.Xml.Linq;
-using System.Collections.Concurrent;
 
 namespace Infrastructure.DBService
 {

@@ -14,11 +14,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.Configure<GameHistoryDBSettings>(builder.Configuration.GetSection("Database"));
 builder.Services.Configure<RankingBoradDBSettings>(builder.Configuration.GetSection("Database"));
 builder.Services.Configure<GroupsUsersAndMessagesSettings>(builder.Configuration.GetSection("Database"));
+builder.Services.Configure<QuestionsSettings>(builder.Configuration.GetSection("Database"));
 
 
 builder.Services.AddScoped<IGameHistoryService, GameHistoryService>();
 builder.Services.AddScoped<IRankingBoardService, RankingBoardService>();
 builder.Services.AddScoped<IGroupsUsersAndMessagesService, GroupsUsersAndMessagesService>();
+builder.Services.AddScoped<IQuestionsService, QuestionsService>();
 
 builder.Services.AddScoped<PlayerGroupsHubBase, PlayerGroupsHub>();
 
@@ -44,6 +46,12 @@ builder.Services.AddCors(options =>
 );
 
 var app = builder.Build();
+
+{
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<IQuestionsService>();
+    await context.InitQuestions();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

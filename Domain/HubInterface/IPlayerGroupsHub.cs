@@ -27,11 +27,14 @@ namespace Domain.HubInterface
         Task currentUserInDiscusstion(string waitingState);
         Task nextStep(NextStep nextStep);
         Task finishVoteWaitForOthersOrVoteResult(bool waitingState, string result);
-        Task PriestRound(bool status, string priestName);
-        Task AssignRulerOfTheSynagogue(bool status);
+        Task PriestROTSNicoMeet(string ROTSName, string priestName, string NicodemusName);
+        Task PriestRound();
+        Task RulerOfTheSynagogueMeeting();
+        Task NicoMeeting();
         Task priestExileRoundFinish();
         Task JudasCheckResult(bool status);
         Task updateExiledUsers(List<string> userNames);
         Task announceExile(string name);
+        Task changeDay(int day);
     }
 }

@@ -162,7 +162,7 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
-        public async Task<OnlineUsers?> getSpecificIdentityFromGroup(string groupName, Identities identity)
+        public async Task<OnlineUsers?> getSpecificUserFromGroupByIdentity(string groupName, Identities identity)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if(group != null)
@@ -488,6 +488,13 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        /// <summary>
+        /// set a player's exile status
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="exileStat"></param>
+        /// <param name="exileName">if it is empty string, meaning Nicodemus is using his ability to save whoever's aboutToExile is true.</param>
+        /// <returns> return false, if priest try to exile Nicodemus or cannot get group from Redis.</returns>
         public async Task<bool> setExile(string groupName, bool exileStat, string exileName = "")
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -505,33 +512,43 @@ namespace Infrastructure.DistributedCacheService
                                 return x;
                             });
                     }
-                    else
-                    {
-                        return false;
-                    }
                 }
                 else
                 {
-                    UpdateHelper.TryUpdateCustom(group.onlineUsers, exileName,
-                        x =>
+                    OnlineUsers? user = await getOneUserFromGroup(groupName, exileName);
+                    if (user != null)
+                    {
+                        // Nicodemus cannot be exiled.
+                        if(user.identity != Identities.Nicodemus)
                         {
-                            x.aboutToExile = exileStat;
-                            return x;
-                        });
+                            UpdateHelper.TryUpdateCustom(group.onlineUsers, exileName,
+                                x =>
+                                {
+                                    x.aboutToExile = exileStat;
+                                    return x;
+                                });
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                    }
                 }
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                 return true;
             }
             return false;
         }
-        public async Task increaseDay(string groupName)
+        public async Task<int> increaseDay(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
                 group.day++;
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                return group.day;
             }
-            await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            return -1;
         }
         /// <summary>
         /// Set changed vote for current user. The user should have either name or identity.
@@ -555,7 +572,7 @@ namespace Infrastructure.DistributedCacheService
                 }
                 else
                 {
-                    user = await getSpecificIdentityFromGroup(groupName, identities!.Value);
+                    user = await getSpecificUserFromGroupByIdentity(groupName, identities!.Value);
                     if(user != null)
                     {
                         changeVoteName = user.name;
@@ -594,7 +611,7 @@ namespace Infrastructure.DistributedCacheService
         public async Task NicodemusSetProtection(string groupName, bool protectionStatus)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            OnlineUsers? user = await getSpecificIdentityFromGroup(groupName, Identities.Nicodemus);
+            OnlineUsers? user = await getSpecificUserFromGroupByIdentity(groupName, Identities.Nicodemus);
             if (user != null && group != null)
             {
                 UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
@@ -668,7 +685,7 @@ namespace Infrastructure.DistributedCacheService
                 {
                     if(user.identity == Identities.Peter)
                     {
-                        OnlineUsers? John = await getSpecificIdentityFromGroup(groupName, Identities.John);
+                        OnlineUsers? John = await getSpecificUserFromGroupByIdentity(groupName, Identities.John);
                         if(John != null && John.johnProtection)
                         {
                             UpdateHelper.TryUpdateCustom(group.onlineUsers, John.name,
@@ -700,7 +717,7 @@ namespace Infrastructure.DistributedCacheService
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if(group != null && group.day == 3)
             {
-                OnlineUsers? Peter = await getSpecificIdentityFromGroup(groupName, Identities.Peter);
+                OnlineUsers? Peter = await getSpecificUserFromGroupByIdentity(groupName, Identities.Peter);
                 if(Peter != null && Peter.inGame)
                 {
                     UpdateHelper.TryUpdateCustom(group.onlineUsers, Peter.name,

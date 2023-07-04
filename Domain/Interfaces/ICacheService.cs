@@ -2,6 +2,7 @@
 using Domain.DBEntities;
 using MongoDB.Driver;
 using System.Collections.Concurrent;
+using System.Numerics;
 
 namespace Domain.Interfaces
 {
@@ -15,7 +16,7 @@ namespace Domain.Interfaces
         Task<OnlineUsers?> getGroupLeaderFromGroup(string groupName);
         Task<OnlineUsers?> getOneUserFromGroup(string groupName, string name);
         Task<string> getMaxPlayersInGroup(string groupName);
-        Task<OnlineUsers?> getSpecificIdentityFromGroup(string groupName, Identities identity);
+        Task<OnlineUsers?> getSpecificUserFromGroupByIdentity(string groupName, Identities identity);
         Task<OnlineUsers?> getPriest(string groupName);
 
 
@@ -56,7 +57,7 @@ namespace Domain.Interfaces
         Task<(bool, int)> whoWins(string groupName);
         Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName);
         Task<bool> setExile(string groupName, bool exileState, string exileName = "");
-        Task increaseDay(string groupName);
+        Task<int> increaseDay(string groupName);
         Task changeVote(string groupName, string name = "", Identities? identities = null, double changedVote = 0.0, string option = "");
         Task NicodemusSetProtection(string groupName, bool protectionStatus);
         Task<List<string>?> GetJohnCannotFireList(string groupName);

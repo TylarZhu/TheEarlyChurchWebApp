@@ -12,7 +12,7 @@ namespace Domain.DBEntities
         public ConcurrentDictionary<string, OnlineUsers> onlineUsers { get; set; } = new ConcurrentDictionary<string, OnlineUsers>();
         // messages -> unuse info
         public Message history { get; set; } = new Message();
-        public ConcurrentBag<int> numberofWaitingUser = new ConcurrentBag<int>();
+        public ConcurrentDictionary<string, int> numberofWaitingUser = new ConcurrentDictionary<string, int>();
 
         // this is for John's ability, which he cannot fire duplicate person.
         // be aware that this array does not contain John himself.
@@ -31,7 +31,7 @@ namespace Domain.DBEntities
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
-            numberofWaitingUser.Add(maxPlayers);
+            numberofWaitingUser.TryAdd("WaitingUsers", maxPlayers);
         }
 
         public List<Identities>? issuedIdentityCards()

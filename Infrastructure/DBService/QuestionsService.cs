@@ -633,5 +633,11 @@ namespace Infrastructure.DBService
                 }
             }
         }
+
+        public async Task<Questions?> RandomSelectAQuestion()
+        {
+            List<Questions> array = await questionsService.AsQueryable().Sample(1).ToListAsync();
+            return array.FirstOrDefault();
+        }
     }
 }

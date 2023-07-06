@@ -31,7 +31,7 @@ namespace WebAPI.Controllers
                 await redisCacheService.SetNewGroupAsync(newUser.groupName,
                     new GamesGroupsUsersMessages(newUser.groupName, maxPlayerInGroup),
                     new OnlineUsers(newUser.name, newUser.connectionId, true));
-                await redisCacheService.setNewVoteListAsync(newUser.groupName, new ConcurrentDictionary<string, double>());
+                await redisCacheService.updateListAsync(newUser.groupName, new ConcurrentDictionary<string, double>());
             }
             // if there is group, then just add to the group.
             else

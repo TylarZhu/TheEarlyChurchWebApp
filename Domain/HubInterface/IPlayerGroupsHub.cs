@@ -1,5 +1,6 @@
 ﻿using Domain.APIClass;
 using Domain.Common;
+using Domain.DBEntities;
 
 namespace Domain.HubInterface
 {
@@ -24,17 +25,19 @@ namespace Domain.HubInterface
         /// <param name="commands"> send payloads to UI to display on screen.</param>
         /// <returns></returns>
         Task finishedViewIdentityAndWaitOnOtherPlayers(bool waitingState);
-        Task currentUserInDiscusstion(string waitingState);
+        Task currentUserInDiscusstion(string state, string inDiscusstionUserName = "");
         Task nextStep(NextStep nextStep);
-        Task finishVoteWaitForOthersOrVoteResult(bool waitingState, string result);
+        Task finishVoteWaitForOthersOrVoteResult(bool waitingState, string result = "");
         Task PriestROTSNicoMeet(string ROTSName, string priestName, string NicodemusName);
         Task PriestRound();
         Task RulerOfTheSynagogueMeeting();
         Task NicoMeeting();
         Task priestExileRoundFinish();
         Task JudasCheckResult(bool status);
-        Task updateExiledUsers(List<string> userNames);
+        Task updateExiledUsers(List<OnlineUsers> userNames);
         Task announceExile(string name);
         Task changeDay(int day);
+        Task getAQuestion(Questions questions);
+        Task inAnswerQuestionName(string name = "");
     }
 }

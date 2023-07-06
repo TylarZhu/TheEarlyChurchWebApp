@@ -27,6 +27,10 @@
         public bool judasCheck { get; set; } = false;
         public bool inGame { get; set; } = true;
 
+        // This property is used for discusstion round.
+        // because Online Users are randomly placed, therefore we cannot use any loop.
+        public bool disscussed { get; set; } = false;
+
         // for calculating lost vote weight of christians or judaism. (avoid duplicate lost vote)
         // as well as check if some identities has the ability to get correct result.
         public bool disempowering { get; set; } = false;

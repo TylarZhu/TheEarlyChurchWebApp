@@ -43,7 +43,7 @@ namespace Domain.Interfaces
 
 
         // Vote List
-        Task setNewVoteListAsync(string groupName, ConcurrentDictionary<string, double> newVoteList);
+        Task updateListAsync(string groupName, ConcurrentDictionary<string, double> newVoteList);
         Task<ConcurrentDictionary<string, double>?> getVoteList(string groupName);
         Task removeVoteListAsync(string groupName);
 
@@ -51,13 +51,30 @@ namespace Domain.Interfaces
 
         // Game
         Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns>
+        ///     return true, if there are still other players did not take action.
+        ///     return false, if all players have taked actions.
+        /// </returns>
         Task<bool> waitOnOtherPlayersActionInGroup(string groupName);
-        Task<string?> whoIsDiscussingNext(string groupName, string name);
-        Task<(bool, int)> votePerson(string groupName, string votePerson, string fromWho);
+        Task<OnlineUsers?> whoIsDiscussingNext(string groupName);
+        Task<int> votePerson(string groupName, string votePerson, string fromWho, bool everyoneFinishVoting);
         Task<(bool, int)> whoWins(string groupName);
         Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName);
         Task<bool> setExile(string groupName, bool exileState, string exileName = "");
         Task<int> increaseDay(string groupName);
+        /// <summary>
+        /// Set changed vote for current user. The user should have either name or identity.
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="name"> if missing, then identities must have a value. </param>
+        /// <param name="identities">if missing, then name must have a value. </param>
+        /// <param name="changedVote">for add and directly set option.</param>
+        /// <param name="option">setZero, half, add, others options will be directly set </param>
+        /// <returns></returns>
         Task changeVote(string groupName, string name = "", Identities? identities = null, double changedVote = 0.0, string option = "");
         Task NicodemusSetProtection(string groupName, bool protectionStatus);
         Task<List<string>?> GetJohnCannotFireList(string groupName);
@@ -66,6 +83,7 @@ namespace Domain.Interfaces
         Task<bool> JudasCheck(string groupName, string checkName);
         Task<OnlineUsers?> checkIfAnyoneOutOfGame(string groupName);
         Task PeterIncreaseVoteWeightByOneOrNot(string groupName);
-        Task<List<string>> collectAllExiledUserName(string groupName);
+        Task<List<OnlineUsers>> collectAllExiledUserName(string groupName);
+        Task<int> getDay(string groupName);
     }
 }

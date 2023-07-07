@@ -18,7 +18,8 @@ namespace Domain.Interfaces
         Task<string> getMaxPlayersInGroup(string groupName);
         Task<OnlineUsers?> getSpecificUserFromGroupByIdentity(string groupName, Identities identity);
         Task<OnlineUsers?> getPriest(string groupName);
-
+        Task<OnlineUsers?> getROTS(string groupName);
+        
 
         // Group and Users (set)
         Task SetNewGroupAsync(string groupName, GamesGroupsUsersMessages value, OnlineUsers groupLeader, CancellationToken cancellationToken = default);
@@ -62,7 +63,7 @@ namespace Domain.Interfaces
         Task<bool> waitOnOtherPlayersActionInGroup(string groupName);
         Task<OnlineUsers?> whoIsDiscussingNext(string groupName);
         Task<int> votePerson(string groupName, string votePerson, string fromWho, bool everyoneFinishVoting);
-        Task<(bool, int)> whoWins(string groupName);
+        Task<int> whoWins(string groupName);
         Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName);
         Task<bool> setExile(string groupName, bool exileState, string exileName = "");
         Task<int> increaseDay(string groupName);
@@ -81,9 +82,11 @@ namespace Domain.Interfaces
         Task<bool> checkJohnFireAllOrNot(string groupName);
         Task AddToJohnFireList(string groupName, string fireName);
         Task<bool> JudasCheck(string groupName, string checkName);
-        Task<OnlineUsers?> checkIfAnyoneOutOfGame(string groupName);
+        Task<OnlineUsers?> checkAndSetIfAnyoneOutOfGame(string groupName);
         Task PeterIncreaseVoteWeightByOneOrNot(string groupName);
         Task<List<OnlineUsers>> collectAllExiledUserName(string groupName);
         Task<int> getDay(string groupName);
+        Task<OnlineUsers?> getLastNightExiledPlayer(string groupName);
+        Task cleanUp(string groupName);
     }
 }

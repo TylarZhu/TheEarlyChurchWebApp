@@ -26,6 +26,7 @@ namespace Domain.DBEntities
         public double judaismTotalVote { get; set; } = 0.0;
         public double christianLostVote { get; set; } = 0.0;
         public double totalVotes { get; set; } = 0.0;
+        public OnlineUsers? lastNightExiledPlayer { get; set; } = null;
 
         public GamesGroupsUsersMessages(string groupName, int maxPlayers)
         {
@@ -81,25 +82,39 @@ namespace Domain.DBEntities
         /// </summary>
         /// <param name="totalVotes"></param>
         /// <returns>
-        ///     true, if one of the parties wins the game.
-        ///     false, contiune game.
+        ///     0, No one wins.
         ///     1, christian wins.
         ///     2, judaism wins.
         /// </returns>
-        public (bool, int) winCondition()
+        public int winCondition()
         { 
             if (judaismLostVote / judaismTotalVote > 0.5)
             {
-                return (true, 1);
+                return 1;
             }
             else if (christianLostVote / totalVotes > 0.35)
             {
-                return (true, 2);
+                return 2;
             }
             else
             {
-                return (false, 0);
+                return 0;
             }
+        }
+        public void cleanUp()
+        {
+            history.message.Clear();
+            numberofWaitingUser.Clear();
+            numberofWaitingUser.TryAdd("WaitingUsers", maxPlayers);
+            JohnFireList.Clear();
+            numOfChristans = 0;
+            numOfJudaisms = 0;
+            day = 1;
+            judaismLostVote = 0.0;
+            judaismTotalVote = 0.0;
+            christianLostVote = 0.0;
+            totalVotes = 0.0;
+            lastNightExiledPlayer = null;
         }
     }
 }

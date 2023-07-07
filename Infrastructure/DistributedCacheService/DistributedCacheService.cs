@@ -220,6 +220,15 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        public async Task<OnlineUsers?> getROTS(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.onlineUsers.Values.FirstOrDefault(x => x.rulerOfTheSynagogue);
+            }
+            return null;
+        }
 
 
         // Vote List
@@ -511,14 +520,14 @@ namespace Infrastructure.DistributedCacheService
             }
             return (false, 0);*/
         }
-        public async Task<(bool, int)> whoWins(string groupName)
+        public async Task<int> whoWins(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if(group != null)
             {
                 return group.winCondition();
             }
-            return (false, -1);
+            return -1;
         }
         public async Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName)
         {
@@ -756,7 +765,7 @@ namespace Infrastructure.DistributedCacheService
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             return flag;
         }
-        public async Task<OnlineUsers?> checkIfAnyoneOutOfGame(string groupName)
+        public async Task<OnlineUsers?> checkAndSetIfAnyoneOutOfGame(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if(group != null)
@@ -767,29 +776,44 @@ namespace Infrastructure.DistributedCacheService
                     if(user.identity == Identities.Peter)
                     {
                         OnlineUsers? John = await getSpecificUserFromGroupByIdentity(groupName, Identities.John);
-                        if(John != null && John.johnProtection)
+                        if(John != null && John.inGame && John.johnProtection)
                         {
                             UpdateHelper.TryUpdateCustom(group.onlineUsers, John.name,
-                               x => {
-                                   x.johnProtection = false;
-                                   return x;
-                               });
+                                x => {
+                                    x.johnProtection = false;
+                                    return x;
+                                });
+                            UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
+                                x => {
+                                    x.aboutToExile = false;
+                                    return x;
+                                });
+                            group.lastNightExiledPlayer = null;
                             AddNewMessageIntoGroup(group, "John protect Peter! Peter did not exiled.");
                             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                             return null;
                         }
                     }
                     UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
-                    x => {
-                        x.aboutToExile = false;
-                        x.inGame = false;
-                        return x;
-                    });
+                        x => {
+                            x.aboutToExile = false;
+                            x.inGame = false;
+                            return x;
+                        });
                     addLostVote(group, user);
+                    group.lastNightExiledPlayer = user;
+                    UpdateHelper.TryUpdateCustom(group.numberofWaitingUser, "WaitingUsers",
+                        x => {
+                            x--;
+                            return x;
+                        });
                     AddNewMessageIntoGroup(group, $"{user.name} has been exiled! His/her identity is {user.identity}!");
                     await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     return user;
                 }
+                group.lastNightExiledPlayer = null;
+                AddNewMessageIntoGroup(group, $"No one has been exiled!");
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
             return null;
         }
@@ -836,6 +860,43 @@ namespace Infrastructure.DistributedCacheService
                 return group.day;
             }
             return -1;
+        }
+        public async Task<OnlineUsers?> getLastNightExiledPlayer(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.lastNightExiledPlayer;
+            }
+            return null;
+        }
+        public async Task cleanUp(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                foreach(KeyValuePair<string, OnlineUsers> user in group.onlineUsers)
+                {
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, user.Value.name, 
+                        x => {
+                            x.identity = Identities.NullState;
+                            x.originalVote = 0.0;
+                            x.changedVote = 0.0;
+                            x.johnProtection = false;
+                            x.nicodemusProtection = false;
+                            x.priest = false;
+                            x.rulerOfTheSynagogue = false;
+                            x.judasCheck = false;
+                            x.inGame = true;
+                            x.disscussed = false;
+                            x.disempowering = false;
+                            x.aboutToExile = false;
+                            return x;
+                        });
+                }
+                group.cleanUp();
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
         }
 
         //private methods

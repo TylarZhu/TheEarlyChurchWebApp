@@ -260,7 +260,7 @@ namespace Infrastructure.DBService
                     { "B", "John" },
                     { "C", "James" },
                     { "D", "Andrew" },
-                    { "An", "D" },
+                    { "An", "B" },
                     { "Ex", "John 19: 26-27" }
                 }),
                 new Questions(new Dictionary<string, string>() {
@@ -278,7 +278,7 @@ namespace Infrastructure.DBService
                     { "B", "Mary" },
                     { "C", "Lydia" },
                     { "D", "Martha" },
-                    { "An", "C" },
+                    { "An", "A" },
                     { "Ex", "Romans 16: 1-2"}
                 }),
                 new Questions(new Dictionary<string, string>() {
@@ -469,7 +469,7 @@ namespace Infrastructure.DBService
                     { "B", "Antioch" },
                     { "C", "Samaria" },
                     { "D", "Rome" },
-                    { "An", "D" }
+                    { "An", "B" }
                 }),
                 new Questions(new Dictionary<string, string>() {
                     { "Q", "What was the apostle Paul’s original name and what does it mean?" },
@@ -521,12 +521,12 @@ namespace Infrastructure.DBService
                     { "C", "Resurrection and the life, the way and the truth and the life" },
                     { "D", "Vine, Messiah" },
                     { "An", "D" },
-                    { "Ex", "The bread of life (John 6: 35, 48, 51)\r\n" +
-                        "The light of the world (John 8: 12, 9: 5)\r\n" +
-                        "The good shepherd (John 10: 11, 14)\r\n" +
-                        "The gate for the sheep (John 10: 7, 9)" +
-                        "\r\nThe resurrection and the life (John 11: 25)\r\n" +
-                        "The way, the truth, and the life (John 14: 6)\r\n" +
+                    { "Ex", "The bread of life (John 6: 35, 48, 51)\n" +
+                        "The light of the world (John 8: 12, 9: 5)\n" +
+                        "The good shepherd (John 10: 11, 14)\n" +
+                        "The gate for the sheep (John 10: 7, 9)\n" +
+                        "The resurrection and the life (John 11: 25)\n" +
+                        "The way, the truth, and the life (John 14: 6)\n" +
                         "The true vine (John 15: 1, 5)"
                     }
                 }),
@@ -563,8 +563,9 @@ namespace Infrastructure.DBService
                     { "C", "The son of a widow from the town of Nain" },
                     { "D", "Lazarus of Bethany" },
                     { "An", "A" },
-                    { "Ex", "People Jesus resurrected include:\r\nThe daughter of Jairus (Luke 8:49-55)\r\n" +
-                        "The son of a widow from the town of Nain (Luke 7:11-15)\r\n" +
+                    { "Ex", "People Jesus resurrected include:\n" +
+                        "The daughter of Jairus (Luke 8:49-55)\n" +
+                        "The son of a widow from the town of Nain (Luke 7:11-15)\n" +
                         "Lazarus of Bethany (John 11)"
                     }
                 }),
@@ -584,9 +585,9 @@ namespace Infrastructure.DBService
                     { "C", "Michael" },
                     { "D", "Lucifer (The Morningstar)" },
                     { "An", "B" },
-                    { "Ex", "The three archangels mentioned in the Bible are:\r\n" +
-                        "Gabriel (Luke 1:19)\r\n" +
-                        "Michael (Jude 1: 9)\r\n" +
+                    { "Ex", "The three archangels mentioned in the Bible are:\n" +
+                        "Gabriel (Luke 1:19)\n" +
+                        "Michael (Jude 1: 9)\n" +
                         "Lucifer, aka Satan (Ezekiel 28: 14-16, Isaiah 14: 12)"
                     }
                 }),

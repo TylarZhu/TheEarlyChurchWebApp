@@ -12,13 +12,13 @@
         // ------------ //
         // game fields  //
         // ------------ //
-        public Identities identity { get; set; }
+        public Identities identity { get; set; } = Identities.NullState;
 
         // originial vote is used to calculate lost vote for winning condition.
-        public double originalVote { get; set; }
+        public double originalVote { get; set; } = 0.0;
 
         // vote can be changed due to user's ability or day meetings
-        public double changedVote { get; set; }
+        public double changedVote { get; set; } = 0.0;
         public bool johnProtection { get; set; } = false;
         public bool nicodemusProtection { get; set; } = false;
         public bool priest { get; set; } = false;
@@ -79,6 +79,11 @@
                     break;
             }
             changedVote = originalVote;
+        }
+        public void cleanUp()
+        {
+
+
         }
     }
 }

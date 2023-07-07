@@ -9,6 +9,7 @@
         Judaism, // 犹太会众
         Peter, // 彼得
         John, // 约翰
-        Laity // 平信徒
+        Laity, // 平信徒
+        NullState // Null
     }
 }

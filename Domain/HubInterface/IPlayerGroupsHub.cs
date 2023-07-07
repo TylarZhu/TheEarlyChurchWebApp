@@ -39,5 +39,9 @@ namespace Domain.HubInterface
         Task changeDay(int day);
         Task getAQuestion(Questions questions);
         Task inAnswerQuestionName(string name = "");
+        Task JudasGivePriestHint(string priestName);
+        Task PriestReceiveHint(string JudasName, string hint);
+        Task announceLastExiledPlayerInfo(bool status, string name = "");
+        Task announceWinner(int winnerParty);
     }
 }

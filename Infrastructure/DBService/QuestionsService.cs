@@ -7,6 +7,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Domain.Common;
+using System.Collections.Generic;
 
 namespace Infrastructure.DBService
 {
@@ -185,7 +186,7 @@ namespace Infrastructure.DBService
                     { "Q", "In the 4 Gospels, where did Jesus speak the parables of the secrets of the kingdom of Heaven?" },
                     { "A", "Matthew 13" },
                     { "B", "Mark 13" },
-                    { "C", "Mark 13" },
+                    { "C", "Luke 13" },
                     { "D", "John 13" },
                     { "An", "A" },
                     { "Ex", "Matthew 13: Parable of (1) The Sower, (2) Weeds, (3) Mustard Seed, (4) Yeast, (5) Hidden Treasure, (6) Pearl, (7) The Net" }
@@ -637,8 +638,10 @@ namespace Infrastructure.DBService
 
         public async Task<Questions?> RandomSelectAQuestion()
         {
-            List<Questions> array = await questionsService.AsQueryable().Sample(1).ToListAsync();
-            return array.FirstOrDefault();
+            /*List<Questions> array = await questionsService.AsQueryable().Sample(1).ToListAsync();*/
+            List<Questions> array = await questionsService.Find(_ => true).ToListAsync();
+            Random rand = new Random();
+            return array[rand.Next(array.Count)];
         }
     }
 }

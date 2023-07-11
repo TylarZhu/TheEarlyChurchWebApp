@@ -132,6 +132,15 @@ namespace Infrastructure.DistributedCacheService
                 group.history.message[group.day] = new List<string> { message };
             }
         }
+        public async Task AddNewMessageIntoGroupAndSave(string groupName, string message)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                AddNewMessageIntoGroup(group, message);
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
         public async Task<Dictionary<int, List<string>>?> getAllMessagesInGroup(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -211,24 +220,6 @@ namespace Infrastructure.DistributedCacheService
             }
             return group.maxPlayers.ToString();
         }
-        public async Task<OnlineUsers?> getPriest(string groupName)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if(group != null)
-            {
-                return group.onlineUsers.Values.FirstOrDefault(x => x.priest);
-            }
-            return null;
-        }
-        public async Task<OnlineUsers?> getROTS(string groupName)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if (group != null)
-            {
-                return group.onlineUsers.Values.FirstOrDefault(x => x.rulerOfTheSynagogue);
-            }
-            return null;
-        }
 
 
         // Vote List
@@ -254,15 +245,13 @@ namespace Infrastructure.DistributedCacheService
 
 
         // Game
-        public async Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms)
+        public async Task<bool> createAGameAndAssignIdentities(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group == null)
             {
                 return false;
             }
-            group.numOfChristans = christans;
-            group.numOfJudaisms = judaisms;
             List<Identities>? identityCards = group.issuedIdentityCards();
             if (identityCards != null) 
             {
@@ -278,7 +267,7 @@ namespace Infrastructure.DistributedCacheService
                             if (x.identity == Identities.Judaism ||
                                 x.identity == Identities.Judas ||
                                 x.identity == Identities.Pharisee ||
-                                x.identity == Identities.Scribes)
+                                x.identity == Identities.Preist)
                             {
                                 group.judaismTotalVote += x.originalVote;
                             }
@@ -290,7 +279,6 @@ namespace Infrastructure.DistributedCacheService
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             return true;
         }
-        
         public async Task<bool> waitOnOtherPlayersActionInGroup(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -312,10 +300,10 @@ namespace Infrastructure.DistributedCacheService
                     else
                     {
                         UpdateHelper.TryUpdateCustom(group.numberofWaitingUser, "WaitingUsers",
-                            x => {
-                                x --;
-                                return x;
-                            });
+                        x => {
+                            x--;
+                            return x;
+                        });
                         await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     }
                 }
@@ -427,7 +415,7 @@ namespace Infrastructure.DistributedCacheService
                         // update lost vote
                         returnType = addLostVote(group, users);
 
-                        AddNewMessageIntoGroup(group, $"{users.name} has been vote out on Day {group.day}!");
+                        AddNewMessageIntoGroup(group, $"{users.name} lost all his/her vote weight and his identity is {users.identity}!");
                         UpdateHelper.TryUpdateCustom(group.onlineUsers, voteHighestPerson.Item1,
                         x =>
                         {
@@ -444,81 +432,6 @@ namespace Infrastructure.DistributedCacheService
                 }
             }
             return -1;
-                /*if (group.numberofWaitingUser.TryPeek(out int currentWaitingUser))
-                {
-                    // everyone finished voting 
-                    if (currentWaitingUser <= 1)
-                    {
-                        (string, double) voteHighestPerson = ("", 0.0);
-                        List<string> equalVotePersonName = new List<string>();
-                        int counter = 1;
-                        int returnType = 0;
-                        List<string> keys = voteList.Keys.ToList();
-
-
-                        foreach (string key in voteList.Keys)
-                        {
-                            if (voteList.TryGetValue(key, out double vote))
-                            {
-                                if (vote > voteHighestPerson.Item2)
-                                {
-                                    voteHighestPerson.Item1 = key;
-                                    voteHighestPerson.Item2 = vote;
-                                    counter = 1;
-                                    equalVotePersonName.Clear();
-                                    equalVotePersonName.Add(key);
-                                }
-                                else if (vote == voteHighestPerson.Item2)
-                                {
-                                    counter++;
-                                    equalVotePersonName.Add(key);
-                                }
-                            }
-                        }
-                        // someone has equal vote, then no one gets vote out.
-                        if (counter > 1)
-                        {
-                            string equalVoteMessage = "";
-                            foreach (string name in equalVotePersonName)
-                            {
-                                equalVoteMessage = equalVoteMessage + name + " ";
-                            }
-                            equalVoteMessage += "have same amount of vote!";
-                            AddNewMessageIntoGroup(group, equalVoteMessage);
-                            returnType = 3;
-                        }
-                        // someone lost vote weight
-                        else if (group.onlineUsers.TryGetValue(voteHighestPerson.Item1, out OnlineUsers? users) && users != null)
-                        {
-                            // update lost vote
-                            returnType = addLostVote(group, users);
-
-                            AddNewMessageIntoGroup(group, $"{users.name} has been vote out on Day {group.day}!");
-                            UpdateHelper.TryUpdateCustom(group.onlineUsers, voteHighestPerson.Item1,
-                            x => {
-                                x.changedVote = 0;
-                                x.disempowering = true;
-                                return x;
-                            });
-                            
-                        }
-                        group.numberofWaitingUser.Clear();
-                        voteList.Clear();
-                        group.numberofWaitingUser.Add(group.maxPlayers);
-                        await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
-                        await setNewVoteListAsync(groupName, voteList);
-                        return (true, returnType);
-                    }
-                    else
-                    {
-                        group.numberofWaitingUser.TryTake(out int _);
-                        group.numberofWaitingUser.Add(--currentWaitingUser);
-                        await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
-                        await setNewVoteListAsync(groupName, voteList);
-                    }
-                }
-            }
-            return (false, 0);*/
         }
         public async Task<int> whoWins(string groupName)
         {
@@ -528,54 +441,6 @@ namespace Infrastructure.DistributedCacheService
                 return group.winCondition();
             }
             return -1;
-        }
-        public async Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if(group != null)
-            {
-                Random rand = new Random();
-                OnlineUsers? priest, rulerOfTheSynagogue;
-                // assign priest
-                if (rand.Next(0, 2) == 1)
-                {
-                    priest = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Scribes);
-                    rulerOfTheSynagogue = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Pharisee);
-                }
-                else
-                {
-                    priest = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Pharisee);
-                    rulerOfTheSynagogue = group.onlineUsers.Values.FirstOrDefault(x => x.identity == Identities.Scribes);
-                }
-                // avoid duplicate assign.
-                // if the user already assigned as priest or rulerOfTheSynagogue before,
-                // then avoid to be assigned again.
-                if (priest != null && rulerOfTheSynagogue != null && 
-                    !(priest.priest || priest.rulerOfTheSynagogue))
-                {
-                    UpdateHelper.TryUpdateCustom(group.onlineUsers, priest.name,
-                        x =>
-                        {
-                            x.priest = true;
-                            return x;
-                        });
-                    UpdateHelper.TryUpdateCustom(group.onlineUsers, rulerOfTheSynagogue.name,
-                        x =>
-                        {
-                            x.rulerOfTheSynagogue = true;
-                            return x;
-                        });
-                    AddNewMessageIntoGroup(group, $"{priest.name} is the Priest in this game! ");
-                    AddNewMessageIntoGroup(group, $"{rulerOfTheSynagogue.name} is the Ruler Of The Synagogue in this game!");
-                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
-                    return new List<OnlineUsers> { priest, rulerOfTheSynagogue };
-                }
-                else
-                {
-                    return new List<OnlineUsers>();
-                }
-            }
-            return null;
         }
         /// <summary>
         /// set a player's exile status
@@ -589,11 +454,21 @@ namespace Infrastructure.DistributedCacheService
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
+                // only Nico choice to save so exileName will be empty
                 if(string.IsNullOrEmpty(exileName))
                 {
                     OnlineUsers? user = group.onlineUsers.Values.FirstOrDefault(x => x.aboutToExile);
                     if (user != null)
                     {
+                        // it is the opposite
+                        if (exileStat)
+                        {
+                            AddNewMessageIntoGroup(group, $"Nicodemus choice not to save {user.name}!");
+                        }
+                        else
+                        {
+                            AddNewMessageIntoGroup(group, $"Nicodemus choice to save {user.name}!");
+                        }
                         UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
                             x =>
                             {
@@ -610,6 +485,7 @@ namespace Infrastructure.DistributedCacheService
                         // Nicodemus cannot be exiled.
                         if(user.identity != Identities.Nicodemus)
                         {
+                            AddNewMessageIntoGroup(group, $"Priest try to exile {user.name} and his/her identity is {user.identity}!");
                             UpdateHelper.TryUpdateCustom(group.onlineUsers, exileName,
                                 x =>
                                 {
@@ -870,6 +746,15 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        public async Task<Dictionary<int, List<string>>?> getGameHistory(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.history.message;
+            }
+            return null;
+        }
         public async Task cleanUp(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -884,8 +769,6 @@ namespace Infrastructure.DistributedCacheService
                             x.changedVote = 0.0;
                             x.johnProtection = false;
                             x.nicodemusProtection = false;
-                            x.priest = false;
-                            x.rulerOfTheSynagogue = false;
                             x.judasCheck = false;
                             x.inGame = true;
                             x.disscussed = false;

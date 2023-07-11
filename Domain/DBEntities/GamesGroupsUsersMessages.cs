@@ -19,13 +19,12 @@ namespace Domain.DBEntities
         public List<string> JohnFireList = new List<string>();
 
         // game fields
-        public int numOfChristans { get; set; } = 0;
-        public int numOfJudaisms { get; set; } = 0;
         public int day { get; set; } = 1;
         public double judaismLostVote { get; set; } = 0.0;
         public double judaismTotalVote { get; set; } = 0.0;
         public double christianLostVote { get; set; } = 0.0;
         public double totalVotes { get; set; } = 0.0;
+        public bool resetWaitingUserForGameHistory { get; set; } = false;
         public OnlineUsers? lastNightExiledPlayer { get; set; } = null;
 
         public GamesGroupsUsersMessages(string groupName, int maxPlayers)
@@ -41,7 +40,7 @@ namespace Domain.DBEntities
             Random rand = new Random();
 
             identities.Add(Identities.Judas);
-            identities.Add(Identities.Scribes);
+            identities.Add(Identities.Preist);
             identities.Add(Identities.Pharisee);
             identities.Add(Identities.Peter);
             identities.Add(Identities.John);
@@ -107,14 +106,13 @@ namespace Domain.DBEntities
             numberofWaitingUser.Clear();
             numberofWaitingUser.TryAdd("WaitingUsers", maxPlayers);
             JohnFireList.Clear();
-            numOfChristans = 0;
-            numOfJudaisms = 0;
             day = 1;
             judaismLostVote = 0.0;
             judaismTotalVote = 0.0;
             christianLostVote = 0.0;
             totalVotes = 0.0;
             lastNightExiledPlayer = null;
+            resetWaitingUserForGameHistory = false;
         }
     }
 }

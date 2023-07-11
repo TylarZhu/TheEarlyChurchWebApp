@@ -4,7 +4,7 @@
     {
         Nicodemus, // 尼哥底母
         Judas, // 犹大
-        Scribes, // 文士
+        Preist, // 祭司
         Pharisee, // 法利赛人
         Judaism, // 犹太会众
         Peter, // 彼得

@@ -21,8 +21,6 @@
         public double changedVote { get; set; } = 0.0;
         public bool johnProtection { get; set; } = false;
         public bool nicodemusProtection { get; set; } = false;
-        public bool priest { get; set; } = false;
-        public bool rulerOfTheSynagogue { get; set; } = false;
 
         public bool judasCheck { get; set; } = false;
         public bool inGame { get; set; } = true;
@@ -54,7 +52,7 @@
                     originalVote = 0.5;
                     judasCheck = true;
                     break;
-                case Identities.Scribes:
+                case Identities.Preist:
                     originalVote = 1;
                     break;
                 case Identities.Pharisee:

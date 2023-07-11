@@ -43,5 +43,6 @@ namespace Domain.HubInterface
         Task PriestReceiveHint(string JudasName, string hint);
         Task announceLastExiledPlayerInfo(bool status, string name = "");
         Task announceWinner(int winnerParty);
+        Task announceGameHistory(Dictionary<int, List<string>>? history);
     }
 }

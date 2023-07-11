@@ -38,7 +38,7 @@ namespace Domain.DBEntities
             Random rand = new Random();
 
             identities.Add(Identities.Judas);
-            identities.Add(Identities.Scribes);
+            identities.Add(Identities.Preist);
             identities.Add(Identities.Pharisee);
             identities.Add(Identities.Peter);
             identities.Add(Identities.John);

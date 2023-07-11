@@ -17,8 +17,6 @@ namespace Domain.Interfaces
         Task<OnlineUsers?> getOneUserFromGroup(string groupName, string name);
         Task<string> getMaxPlayersInGroup(string groupName);
         Task<OnlineUsers?> getSpecificUserFromGroupByIdentity(string groupName, Identities identity);
-        Task<OnlineUsers?> getPriest(string groupName);
-        Task<OnlineUsers?> getROTS(string groupName);
         
 
         // Group and Users (set)
@@ -35,6 +33,7 @@ namespace Domain.Interfaces
         // Group and Users (add)
         Task AddNewUsersToGroupAsync(string groupName, OnlineUsers user, CancellationToken cancellationToken = default);
         void AddNewMessageIntoGroup(GamesGroupsUsersMessages group, string message);
+        Task AddNewMessageIntoGroupAndSave(string groupName, string message);
 
 
         // Group and Users (check)
@@ -51,7 +50,7 @@ namespace Domain.Interfaces
 
 
         // Game
-        Task<bool> createAGameAndAssignIdentities(string groupName, int christans, int judaisms);
+        Task<bool> createAGameAndAssignIdentities(string groupName);
         /// <summary>
         /// 
         /// </summary>
@@ -61,10 +60,11 @@ namespace Domain.Interfaces
         ///     return false, if all players have taked actions.
         /// </returns>
         Task<bool> waitOnOtherPlayersActionInGroup(string groupName);
+        /*Task resetWaitingPlayerToPrepareToViewGameHistory(string groupName);*/
         Task<OnlineUsers?> whoIsDiscussingNext(string groupName);
         Task<int> votePerson(string groupName, string votePerson, string fromWho, bool everyoneFinishVoting);
         Task<int> whoWins(string groupName);
-        Task<List<OnlineUsers>?> assignPriestAndRulerOfTheSynagogue(string groupName);
+        // isNico is for game history
         Task<bool> setExile(string groupName, bool exileState, string exileName = "");
         Task<int> increaseDay(string groupName);
         /// <summary>
@@ -87,6 +87,7 @@ namespace Domain.Interfaces
         Task<List<OnlineUsers>> collectAllExiledUserName(string groupName);
         Task<int> getDay(string groupName);
         Task<OnlineUsers?> getLastNightExiledPlayer(string groupName);
+        Task<Dictionary<int, List<string>>?> getGameHistory(string groupName);
         Task cleanUp(string groupName);
     }
 }

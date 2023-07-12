@@ -255,7 +255,7 @@ namespace WebAPI.Controllers
                 }
                 else
                 {
-                    
+                    await _hub.Clients.Client(Priest.connectionId).PriestRound();
                 }
                 return Ok();
             }
@@ -344,6 +344,7 @@ namespace WebAPI.Controllers
                         {
                             await redisCacheService.changeVote(groupName, name: fireName, option: "half");
                             await redisCacheService.AddToJohnFireList(groupName, fireName);
+                            await _hub.Clients.Client(John.connectionId).nextStep(new NextStep("SetUserToNightWaiting"));
                         }
                         else
                         {
@@ -362,12 +363,8 @@ namespace WebAPI.Controllers
                     }
                 }
                 // New Rule: Judas can use his ability after day 2.
-                if(await redisCacheService.getDay(groupName) >= 2)
+                if (await redisCacheService.getDay(groupName) >= 2)
                 {
-                    if(John.inGame)
-                    {
-                        await _hub.Clients.Client(John.connectionId).nextStep(new NextStep("SetUserToNightWaiting"));
-                    }
                     await JudasCheckRound(groupName);
                 }
                 else
@@ -396,7 +393,8 @@ namespace WebAPI.Controllers
                     }
                     else
                     {
-                        if(Judas.disempowering)
+                        await _hub.Clients.Client(Judas.connectionId).nextStep(new NextStep("SetUserToNightWaiting"));
+                        if (Judas.disempowering)
                         {
                             await _hub.Clients.Client(Judas.connectionId).JudasCheckResult(false);
                         }

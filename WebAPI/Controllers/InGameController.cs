@@ -31,8 +31,8 @@ namespace WebAPI.Controllers
         {
             if (await redisCacheService.createAGameAndAssignIdentities(groupName))
             {
-                List<OnlineUsers> users = await redisCacheService.getAllUsers(groupName);
-                foreach (OnlineUsers user in users)
+                List<Users> users = await redisCacheService.getAllUsers(groupName);
+                foreach (Users user in users)
                 {
                     List<string>? ex = explanation.getExplanation(user.identity);
                     if (ex == null)
@@ -42,6 +42,8 @@ namespace WebAPI.Controllers
                     await _hub.Clients.Client(user.connectionId).updatePlayersIdentities(user.identity.ToString());
                     await _hub.Clients.Client(user.connectionId).IdentitiesExplanation(ex);
                 }
+                await redisCacheService.turnOnGameInProgress(groupName);
+                await redisCacheService.changeCurrentGameStatus(groupName, "IdentityViewingState");
                 return Ok();
             }
             else
@@ -52,12 +54,18 @@ namespace WebAPI.Controllers
         [HttpPost("IdentityViewingState/{groupName}/{playerName}")]
         public async Task<ActionResult> IdentityViewingState(string groupName, string playerName)
         {
-            bool wait = await redisCacheService.waitOnOtherPlayersActionInGroup(groupName);
+            bool wait = true;
+            // if user already viewed identity, then do not decrease waiting users.
+            if (!await redisCacheService.getViewedIdentity(groupName, playerName))
+            {
+                wait = await redisCacheService.decreaseWaitingUsers(groupName);
+            }
             // true, then finish view identity and wait for others.
             // False, then all user finished viewing ready to go to next step.
             if (wait)
             {
-                OnlineUsers? user = await redisCacheService.getOneUserFromGroup(groupName, playerName);
+                await redisCacheService.playerViewedIdentity(groupName, playerName);
+                Users? user = await redisCacheService.getOneUserFromGroup(groupName, playerName);
                 if (user != null)
                 {
                     await _hub.Clients.Client(user.connectionId).finishedViewIdentityAndWaitOnOtherPlayers(true);
@@ -70,6 +78,7 @@ namespace WebAPI.Controllers
             else
             {
                 await _hub.Clients.Group(groupName).finishedViewIdentityAndWaitOnOtherPlayers(false);
+                await redisCacheService.changeCurrentGameStatus(groupName, "DiscussingState");
                 await _hub.Clients.Group(groupName).nextStep(new NextStep("discussing"));
                 await whoIsDiscussing(groupName);
             }
@@ -78,7 +87,7 @@ namespace WebAPI.Controllers
         [HttpGet("WhoIsDiscussing/{groupName}")]
         public async Task<ActionResult> whoIsDiscussing(string groupName)
         {
-            OnlineUsers? nextDicussingUser = await redisCacheService.whoIsDiscussingNext(groupName);
+            Users? nextDicussingUser = await redisCacheService.whoIsDiscussingNext(groupName);
             // if there is still user who did not discuss
             if (nextDicussingUser != null)
             {
@@ -95,6 +104,7 @@ namespace WebAPI.Controllers
                 // New Rule: we do not vote on day one.
                 if(await redisCacheService.getDay(groupName) != 1)
                 {
+                    await redisCacheService.changeCurrentGameStatus(groupName, "VoteState");
                     await _hub.Clients.GroupExcept(groupName, await getNotInGameUsersConnectiondIds(groupName)).nextStep(new NextStep("vote"));
                 }
                 else
@@ -113,7 +123,7 @@ namespace WebAPI.Controllers
         [HttpPost("voteHimOrHer/{groupName}/{votePerson}/{fromWho}")]
         public async Task<ActionResult<string>> voteHimOrHer(string groupName, string votePerson, string fromWho)
         {
-            bool wait = await redisCacheService.waitOnOtherPlayersActionInGroup(groupName);
+            bool wait = await redisCacheService.decreaseWaitingUsers(groupName);
             int result = await redisCacheService.votePerson(groupName, votePerson, fromWho, wait);
             if (!wait)
             {
@@ -144,6 +154,7 @@ namespace WebAPI.Controllers
                 }
                 else
                 {
+
                     await _hub.Clients.GroupExcept(groupName, await getNotInGameUsersConnectiondIds(groupName))
                         .nextStep(new NextStep("SetUserToNightWaiting"));
                     await ROTSInfoRound(groupName);
@@ -152,7 +163,7 @@ namespace WebAPI.Controllers
             }
             else
             {
-                OnlineUsers? user = await redisCacheService.getOneUserFromGroup(groupName, fromWho);
+                Users? user = await redisCacheService.getOneUserFromGroup(groupName, fromWho);
                 if (user != null)
                 {
                     await _hub.Clients.Client(user.connectionId).finishVoteWaitForOthersOrVoteResult(true);
@@ -166,14 +177,14 @@ namespace WebAPI.Controllers
         }
         public async Task<ActionResult> ROTSInfoRound(string groupName)
         {
-            OnlineUsers? ROTS = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Pharisee);
+            Users? ROTS = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Pharisee);
             if (ROTS != null)
             {
-                if(ROTS.inGame)
+                if(ROTS.inGame && !ROTS.offLine)
                 {
                     if(!ROTS.disempowering)
                     {
-                        OnlineUsers? lastExiledPlayer = await redisCacheService.getLastNightExiledPlayer(groupName);
+                        Users? lastExiledPlayer = await redisCacheService.getLastNightExiledPlayer(groupName);
                         if (lastExiledPlayer != null &&
                             (lastExiledPlayer.identity == Identities.John ||
                             lastExiledPlayer.identity == Identities.Peter ||
@@ -181,27 +192,22 @@ namespace WebAPI.Controllers
                         {
                             await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(true, lastExiledPlayer.name);
                         }
-                        else
-                        {
-                            await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);
-                        }
                     }
-                    else
-                    {
-                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);
-                    }      
+                    await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);
                 }
                 // New Rule: Judas and Priest can meet after day 3.
                 if(await redisCacheService.getDay(groupName) >= 3)
                 {
+                    await redisCacheService.changeCurrentGameStatus(groupName, "JudasMeetWithPriestState");
                     return await JudasMeetWithPriest(groupName);
                 }
                 else
                 {
-                    OnlineUsers? Priest = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
+                    Users? Priest = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
                     if (Priest != null)
                     {
-                        await _hub.Clients.Client(Priest.connectionId).PriestRound();
+                        await redisCacheService.changeCurrentGameStatus(groupName, "PriestRoundState");
+                        await PriestRound(groupName);
                         return Ok();
                     }
                     else
@@ -218,15 +224,16 @@ namespace WebAPI.Controllers
         [HttpGet("justForTestMeeting/{groupName}")]
         public async Task FirstNightPriestNicoPhariseeMeetingRound(string groupName)
         {
-            OnlineUsers? Preist = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
-            OnlineUsers? Nico = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Nicodemus);
-            OnlineUsers? Pharisee = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Pharisee);
+            Users? Preist = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
+            Users? Nico = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Nicodemus);
+            Users? Pharisee = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Pharisee);
             if(Preist != null && Nico != null && Pharisee != null) 
             {
                 await _hub.Clients.Clients(
                         new List<string>() { Preist.connectionId, Nico.connectionId, Pharisee.connectionId })
                         .PriestROTSNicoMeet(Pharisee.name, Preist.name, Nico.name);
-                await _hub.Clients.Client(Preist.connectionId).PriestRound();
+                await redisCacheService.changeCurrentGameStatus(groupName, "PriestRoundState");
+                await PriestRound(groupName);
                 await _hub.Clients.Client(Pharisee.connectionId).RulerOfTheSynagogueMeeting();
                 await _hub.Clients.Client(Nico.connectionId).NicoMeeting();
             }
@@ -235,28 +242,26 @@ namespace WebAPI.Controllers
         [HttpPost("JudasMeetWithPriest/{groupName}/{JudasHint}")]
         public async Task<ActionResult> JudasMeetWithPriest(string groupName, string JudasHint = "")
         {
-            OnlineUsers? Judas = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Judas);
-            OnlineUsers? Priest = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
+            Users? Judas = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Judas);
+            Users? Priest = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
 
             if (Priest != null && Judas != null)
             {
-                if(Judas.inGame)
+                if(Judas.inGame && !Judas.offLine)
                 {
                     if (string.IsNullOrEmpty(JudasHint))
                     {
                         await _hub.Clients.Client(Judas.connectionId).JudasGivePriestHint(Priest.name);
+                        return Ok();
                     }
                     else
                     {
                         await _hub.Clients.Client(Judas.connectionId).nextStep(new NextStep("SetUserToNightWaiting"));
                         await _hub.Clients.Client(Priest.connectionId).PriestReceiveHint(Judas.name, JudasHint);
-                        await _hub.Clients.Client(Priest.connectionId).PriestRound();
                     }
                 }
-                else
-                {
-                    await _hub.Clients.Client(Priest.connectionId).PriestRound();
-                }
+                await redisCacheService.changeCurrentGameStatus(groupName, "PriestRoundState");
+                await PriestRound(groupName);
                 return Ok();
             }
             else
@@ -274,11 +279,13 @@ namespace WebAPI.Controllers
             // Nico cannot be exiled. result will be false.
             if (result)
             {
+                await redisCacheService.changeCurrentGameStatus(groupName, "NicodemusSavingRoundBeginState");
                 await NicodemusSavingRoundBegin(groupName, exileName);
             }
             else
             {
-                await JohnFireRoundBegin(groupName);
+                await redisCacheService.changeCurrentGameStatus(groupName, "JohnFireRoundBeginState");
+                return await JohnFireRoundBegin(groupName);
             }
             return Ok();
         }
@@ -288,17 +295,18 @@ namespace WebAPI.Controllers
         // ---------------------------- //
         private async Task<bool> NicodemusSavingRoundBegin(string groupName, string exileName)
         {
-            OnlineUsers? Nicodemus = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Nicodemus);
+            Users? Nicodemus = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Nicodemus);
 
             if (Nicodemus != null)
             {
-                if (Nicodemus.nicodemusProtection && !Nicodemus.disempowering)
+                if (!Nicodemus.offLine && Nicodemus.nicodemusProtection && !Nicodemus.disempowering)
                 {
                     await _hub.Clients.Client(Nicodemus.connectionId)
                         .nextStep(new NextStep("NicodemusSavingRound", new List<string>() { exileName }));
                 }
                 else
                 {
+                    await redisCacheService.changeCurrentGameStatus(groupName, "JohnFireRoundBeginState");
                     await JohnFireRoundBegin(groupName);
                 }
                 return true;
@@ -315,6 +323,7 @@ namespace WebAPI.Controllers
             }
             if(result)
             {
+                await redisCacheService.changeCurrentGameStatus(groupName, "JohnFireRoundBeginState");
                 await JohnFireRoundBegin(groupName);
                 return Ok();
             }
@@ -331,11 +340,11 @@ namespace WebAPI.Controllers
         [HttpPut("JohnFireRound/{groupName}/{fireName}/{didUserChoose}")]
         public async Task<ActionResult> JohnFireRoundBegin(string groupName, string fireName = "", bool didUserChoose = false)
         {
-            OnlineUsers? John = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.John);
+            Users? John = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.John);
             if(John != null)
             {
                 // if John is in game and he did not fire all the user, then proceed to John's turn.
-                if(John.inGame && !await redisCacheService.checkJohnFireAllOrNot(groupName))
+                if(!John.offLine && John.inGame && !await redisCacheService.checkJohnFireAllOrNot(groupName))
                 {
                     // if this method is invoked by the progarm, then let the user to choose.
                     if(didUserChoose)
@@ -365,10 +374,12 @@ namespace WebAPI.Controllers
                 // New Rule: Judas can use his ability after day 2.
                 if (await redisCacheService.getDay(groupName) >= 2)
                 {
+                    await redisCacheService.changeCurrentGameStatus(groupName, "JudasCheckRoundState");
                     await JudasCheckRound(groupName);
                 }
                 else
                 {
+                    await redisCacheService.changeCurrentGameStatus(groupName, "NightRoundEndState");
                     await NightRoundEnd(groupName);
                 }
                 return Ok();
@@ -382,10 +393,10 @@ namespace WebAPI.Controllers
         [HttpPut("JudasCheckRound/{groupName}/{checkName}")]
         public async Task<ActionResult> JudasCheckRound(string groupName, string checkName = "")
         {
-            OnlineUsers? Judas = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Judas);
+            Users? Judas = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Judas);
             if (Judas != null)
             {
-                if(Judas.inGame)
+                if(!Judas.offLine && Judas.inGame)
                 {
                     if (string.IsNullOrEmpty(checkName))
                     {
@@ -407,6 +418,7 @@ namespace WebAPI.Controllers
                 } else {
                     // If Judas is out of game, we do not want ending night round fast because player will release that Judas is out.
                     Thread.Sleep(3000);
+                    await redisCacheService.changeCurrentGameStatus(groupName, "NightRoundEndState");
                     await NightRoundEnd(groupName);
                 }
                 return Ok();
@@ -418,10 +430,10 @@ namespace WebAPI.Controllers
         public async Task<ActionResult> NightRoundEnd(string groupName)
         {
             
-            OnlineUsers? user = await redisCacheService.checkAndSetIfAnyoneOutOfGame(groupName);
+            Users? user = await redisCacheService.checkAndSetIfAnyoneOutOfGame(groupName);
             await redisCacheService.PeterIncreaseVoteWeightByOneOrNot(groupName);
-            List<OnlineUsers> notInGameUsers = await redisCacheService.collectAllExiledUserName(groupName);
-            List<string> notInGameUsersConnectiondIds = notInGameUsers.Select(x => x.connectionId).ToList();
+            List<Users> notInGameUsers = await redisCacheService.collectAllExileUserName(groupName);
+            /*List<string> notInGameUsersConnectiondIds = notInGameUsers.Select(x => x.connectionId).ToList();*/
             await _hub.Clients.Group(groupName).changeDay(await redisCacheService.increaseDay(groupName));
             await _hub.Clients.Group(groupName).nextStep(new NextStep("quitNightWaiting"));
             if (user != null)
@@ -434,16 +446,24 @@ namespace WebAPI.Controllers
             {
                 await _hub.Clients.Group(groupName).announceExile("No one");
             }
+            await redisCacheService.changeCurrentGameStatus(groupName, "finishedToViewTheExileResultState");
             return Ok();
         }
 
-        [HttpPost("finishedToViewTheExileResult/{groupName}")]
-        public async Task<ActionResult> finishedToViewTheExileResult(string groupName)
+        [HttpPost("finishedToViewTheExileResult/{groupName}/{playerName}")]
+        public async Task<ActionResult> finishedToViewTheExileResult(string groupName, string playerName)
         {
-            bool wait = await redisCacheService.waitOnOtherPlayersActionInGroup(groupName);
+            bool wait = true;
+            // if user already viewed identity, then do not decrease waiting users.
+            if (!await redisCacheService.getViewedExileResult(groupName, playerName))
+            {
+                await redisCacheService.playerViewedExileResult(groupName, playerName);
+                wait = await redisCacheService.decreaseWaitingUsers(groupName);
+            }
             if(!wait)
             {
-                switch(await redisCacheService.whoWins(groupName))
+                await redisCacheService.resetAllViewedExileResultState(groupName);
+                switch (await redisCacheService.whoWins(groupName))
                 {
                     case 1:
                         // clear the previous vote result, so it will not present in the winning modal.
@@ -457,6 +477,7 @@ namespace WebAPI.Controllers
                         await announceGameHistoryAndCleanUp(groupName);
                         break;
                     default:
+                        await redisCacheService.changeCurrentGameStatus(groupName, "spiritualQuestionAnsweredCorrectOrNotState");
                         await spiritualQuestionAnsweredCorrectOrNot(groupName);
                         break;
                 }
@@ -473,7 +494,7 @@ namespace WebAPI.Controllers
                     await redisCacheService.changeVote(groupName, name, changedVote: 0.5, option: "add");
                 }
             }
-            OnlineUsers? nextDicussingUser = await redisCacheService.whoIsDiscussingNext(groupName);
+            Users? nextDicussingUser = await redisCacheService.whoIsDiscussingNext(groupName);
             // if there is still user who did not answer questions
             if (nextDicussingUser != null)
             {
@@ -502,7 +523,7 @@ namespace WebAPI.Controllers
         }
         private async Task<List<string>> getNotInGameUsersConnectiondIds(string groupName)
         {
-            List<OnlineUsers> notInGameUsers = await redisCacheService.collectAllExiledUserName(groupName);
+            List<Users> notInGameUsers = await redisCacheService.collectAllExiledAndOfflineUserName(groupName);
             return notInGameUsers.Select(x => x.connectionId).ToList();
         }
         private string randomPickATopic()
@@ -522,6 +543,27 @@ namespace WebAPI.Controllers
                     return "Who is John?";
                 default:
                     return "error";
+            }
+        }
+
+        [HttpPost("PriestRound/{groupName}")]
+        public async Task PriestRound(string groupName)
+        {
+            Users? Priest = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Preist);
+            if( Priest != null )
+            {
+                if(Priest.offLine)
+                {
+                    Users? exileUser = await redisCacheService.chooseARandomPlayerToExile(groupName);
+                    if(exileUser != null )
+                    {
+                        await exileHimOrHer(groupName, exileUser.name);
+                    }
+                }
+                else
+                {
+                    await _hub.Clients.Client(Priest.connectionId).PriestRound();
+                }
             }
         }
     }

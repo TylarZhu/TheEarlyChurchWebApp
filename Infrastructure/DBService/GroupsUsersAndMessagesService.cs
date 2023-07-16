@@ -25,10 +25,10 @@ namespace Infrastructure.DBService
             await groupsUsersAndMessagesService.InsertOneAsync(groupsUsersAndMessages);
         public async Task<GroupsUsersAndMessages> getOneGroup(string groupName) =>
             await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).FirstOrDefaultAsync();
-        public async Task<List<OnlineUsers>> getUsersFromOneGroup(string groupName) =>
+        public async Task<List<Users>> getUsersFromOneGroup(string groupName) =>
              await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.onlineUsers).FirstOrDefaultAsync();
-        public async Task<List<Message>> getMessagesFromOneGroup(string groupName) =>
-            await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.messages).FirstOrDefaultAsync();
+        /*public async Task<List<Message>> getMessagesFromOneGroup(string groupName) =>
+            await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).Project(x => x.messages).FirstOrDefaultAsync();*/
         public async Task<bool> isGroupEmpty(string groupName)
         {
             GroupsUsersAndMessages group = await getOneGroup(groupName);
@@ -39,7 +39,7 @@ namespace Infrastructure.DBService
             }
             return false;
         }
-        public async Task<OnlineUsers> getOneUserFromSpecificGroup(string groupName, string? name = "", string? connectionId = "")
+        public async Task<Users> getOneUserFromSpecificGroup(string groupName, string? name = "", string? connectionId = "")
         {
             BsonDocument results;
 
@@ -61,9 +61,9 @@ namespace Infrastructure.DBService
                     .Project(new BsonDocument { { "onlineUsers", 1 } })
                     .FirstOrDefaultAsync();
             }
-            return BsonSerializer.Deserialize<OnlineUsers>(results[1].ToJson());
+            return BsonSerializer.Deserialize<Users>(results[1].ToJson());
         }
-        public async Task<OnlineUsers> getGroupLeaderFromSpecificGroup(string groupName)
+        public async Task<Users> getGroupLeaderFromSpecificGroup(string groupName)
         {
             var results = await groupsUsersAndMessagesService.Aggregate()
                 .Match(new BsonDocument { { "groupName", groupName } })
@@ -71,7 +71,7 @@ namespace Infrastructure.DBService
                 .Match(new BsonDocument { { "onlineUsers.groupLeader", true } })
                 .Project(new BsonDocument { { "onlineUsers", 1 } })
                 .FirstOrDefaultAsync();
-            return BsonSerializer.Deserialize<OnlineUsers>(results[1].ToJson());
+            return BsonSerializer.Deserialize<Users>(results[1].ToJson());
         }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
         {
@@ -79,7 +79,7 @@ namespace Infrastructure.DBService
                 Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
                 Builders<GroupsUsersAndMessages>.Filter.ElemMatch(
                     x => x.onlineUsers,
-                    Builders<OnlineUsers>.Filter.Eq(x => x.name, name)
+                    Builders<Users>.Filter.Eq(x => x.name, name)
                 ));
             if (await groupsUsersAndMessagesService.Find(filter).FirstOrDefaultAsync() == null)
             {
@@ -93,19 +93,19 @@ namespace Infrastructure.DBService
                 Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
                 Builders<GroupsUsersAndMessages>.Filter.ElemMatch(
                     x => x.onlineUsers,
-                    Builders<OnlineUsers>.Filter.Eq(x => x.name, name)
+                    Builders<Users>.Filter.Eq(x => x.name, name)
                 ));
             var update = Builders<GroupsUsersAndMessages>.Update.PullFilter(
                 x => x.onlineUsers, 
-                Builders<OnlineUsers>.Filter.Eq(x => x.name, name));
+                Builders<Users>.Filter.Eq(x => x.name, name));
             await groupsUsersAndMessagesService.FindOneAndUpdateAsync(filter, update);
         }
-        public async Task addNewMessageIntoGroup(string groupName, Message newMessage) =>
+/*        public async Task addNewMessageIntoGroup(string groupName, Message newMessage) =>
             await groupsUsersAndMessagesService.FindOneAndUpdateAsync(
                 Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
                 Builders<GroupsUsersAndMessages>.Update.Push(x => x.messages, newMessage)
-            );
-        public async Task addNewUserIntoGroup(string groupName, OnlineUsers onlineUsers) =>
+            );*/
+        public async Task addNewUserIntoGroup(string groupName, Users onlineUsers) =>
             await groupsUsersAndMessagesService.FindOneAndUpdateAsync(
                 Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
                 Builders<GroupsUsersAndMessages>.Update.Push(x => x.onlineUsers, onlineUsers)
@@ -121,7 +121,7 @@ namespace Infrastructure.DBService
                 Builders<GroupsUsersAndMessages>.Filter.Eq(x => x.groupName, groupName),
                 Builders<GroupsUsersAndMessages>.Filter.ElemMatch(
                     x => x.onlineUsers,
-                    Builders<OnlineUsers>.Filter.Eq(x => x.groupLeader, false)
+                    Builders<Users>.Filter.Eq(x => x.groupLeader, false)
                 ));
             var update = Builders<GroupsUsersAndMessages>.Update.Set("onlineUsers.$.groupLeader", true);
             await groupsUsersAndMessagesService.UpdateOneAsync(filter, update);
@@ -135,7 +135,7 @@ namespace Infrastructure.DBService
         public async Task assginIdentities(string groupName)
         {
             GroupsUsersAndMessages group = await groupsUsersAndMessagesService.Find(x => x.groupName == groupName).FirstOrDefaultAsync();
-            List<OnlineUsers> users = group.issuedIdentityCards();
+            List<Users> users = group.issuedIdentityCards();
             var update = Builders<GroupsUsersAndMessages>.Update.Set("onlineUsers", users);
             await groupsUsersAndMessagesService.UpdateOneAsync(x => x.groupName == groupName, update);
         }

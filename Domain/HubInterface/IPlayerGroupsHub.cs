@@ -1,15 +1,16 @@
 ﻿using Domain.APIClass;
 using Domain.Common;
 using Domain.DBEntities;
+using System.Collections.Concurrent;
 
 namespace Domain.HubInterface
 {
     public interface IPlayerGroupsHub
     {
         // type is either message or error
-        Task ReceiveMessages(List<Message> messages);
+        /*Task ReceiveMessages(List<Message> messages);*/
         Task CreateNewUserJoinNewGroup(string connectionId, string groupName, string username, string numberOfPlayers);
-        Task updateOnlineUserList(List<OnlineUsers> onlineUsers);
+        Task updateOnlineUserList(List<Users> onlineUsers);
         Task leaveGroupUserConnectionId(string connectionId);
         Task updateGroupLeader(CreateNewUser users);
         Task GameStop();
@@ -34,7 +35,7 @@ namespace Domain.HubInterface
         Task NicoMeeting();
         Task priestExileRoundFinish();
         Task JudasCheckResult(bool status);
-        Task updateExiledUsers(List<OnlineUsers> userNames);
+        Task updateExiledUsers(List<Users> userNames);
         Task announceExile(string name);
         Task changeDay(int day);
         Task getAQuestion(Questions questions);
@@ -43,6 +44,19 @@ namespace Domain.HubInterface
         Task PriestReceiveHint(string JudasName, string hint);
         Task announceLastExiledPlayerInfo(bool status, string name = "");
         Task announceWinner(int winnerParty);
-        Task announceGameHistory(Dictionary<int, List<string>>? history);
+        Task announceGameHistory(ConcurrentDictionary<string, List<string>>? history);
+        Task announceOffLinePlayer(List<string> playerNameList);
+
+        // user refresh page or close tab
+        Task IdentityViewingStateFinish(string removeUserGroupName, string leaveUserName);
+        Task DiscussingStateFinish(string removeUserGroupName);
+        Task VoteStateFinish(string removeUserGroupName, string leaveUserName);
+        Task PriestRoundStateFinish(string groupName);
+        Task JudasMeetWithPriestStateFinish(string groupName);
+        Task NicodemusSavingRoundBeginStateFinish(string groupName);
+        Task JohnFireRoundBeginStateFinish(string groupName);
+        Task JudasCheckRoundStateFinish(string groupName);
+        Task finishedToViewTheExileResultStateFinish(string groupName, string leaveUserName);
+        Task spiritualQuestionAnsweredCorrectOrNotStateFinish(string groupName, string leaveUserName);
     }
 }

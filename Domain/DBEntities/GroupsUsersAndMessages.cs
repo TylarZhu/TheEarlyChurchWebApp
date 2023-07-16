@@ -14,8 +14,8 @@ namespace Domain.DBEntities
         public string? _groupId { get; set; }
         public string groupName { get; set; } = "";
         public int maxPlayers { get; set; } = 0;
-        public List<OnlineUsers> onlineUsers { get; set; } = new List<OnlineUsers>();
-        public List<Message> messages { get; set; } = new List<Message>();
+        public List<Users> onlineUsers { get; set; } = new List<Users>();
+        /*public List<Message> messages { get; set; } = new List<Message>();*/
 
         // game fields
         public int numOfChristans { get; set; } = 0;
@@ -31,7 +31,7 @@ namespace Domain.DBEntities
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
         }
-        public List<OnlineUsers> issuedIdentityCards()
+        public List<Users> issuedIdentityCards()
         {
             /*ConcurrentDictionary<int, Identities> identities = new ConcurrentDictionary<int, Identities>();*/
             List<Identities> identities = new List<Identities>();

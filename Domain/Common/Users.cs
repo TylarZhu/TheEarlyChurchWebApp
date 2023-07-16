@@ -1,6 +1,6 @@
 ﻿namespace Domain.Common
 {
-    public class OnlineUsers
+    public class Users
     {
         // ------------ //
         // group fields //
@@ -24,6 +24,15 @@
 
         public bool judasCheck { get; set; } = false;
         public bool inGame { get; set; } = true;
+        public bool offLine { get; set; } = false;
+
+        // This property is used for user disconnected with hub and we want to know if he viewed identity or not,
+        // because the user might viewed identity and disconnect, so we do not want to decrease waiting user twice.
+        // this field do not need to reset, because every game players will view identity togerther once.
+        public bool viewedIdentity { get; set; } = false;
+
+        // this field need to be reset after nightRoundEnd.
+        public bool viewedExileResult{ get; set; } = false;
 
         // This property is used for discusstion round.
         // because Online Users are randomly placed, therefore we cannot use any loop.
@@ -37,7 +46,7 @@
         public bool aboutToExile { get; set; } = false;
 
 
-        public OnlineUsers(string name, string connectionId, bool groupLeader = false)
+        public Users(string name, string connectionId, bool groupLeader = false)
         {
             /*this.groupName = groupName;*/
             this.name = name;
@@ -77,11 +86,6 @@
                     break;
             }
             changedVote = originalVote;
-        }
-        public void cleanUp()
-        {
-
-
         }
     }
 }

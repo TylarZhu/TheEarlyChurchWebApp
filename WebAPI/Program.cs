@@ -57,11 +57,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
-    var context = scope.ServiceProvider.GetRequiredService<IQuestionsService>();
-    await context.InitQuestions();
+    var MongoDBcontext = scope.ServiceProvider.GetRequiredService<IQuestionsService>();
+    await MongoDBcontext.InitQuestions();
 }
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

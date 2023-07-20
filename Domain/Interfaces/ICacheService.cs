@@ -17,6 +17,7 @@ namespace Domain.Interfaces
         Task<Users?> getOneUserFromGroup(string groupName, string name);
         Task<string> getMaxPlayersInGroup(string groupName);
         Task<Users?> getSpecificUserFromGroupByIdentity(string groupName, Identities identity);
+        Task<string?> getConnectionIdByName(string groupName, string name);
         
 
         // Group and Users (set)
@@ -61,15 +62,30 @@ namespace Domain.Interfaces
         ///     return true, if there are still other players did not take action.
         ///     return false, if all players have taked actions.
         /// </returns>
-        Task<bool> decreaseWaitingUsers(string groupName);
-        Task<bool> addWaitingUser(string groupName);
+        /*Task<bool> decreaseWaitingUsers(string groupName);
+        Task<bool> addWaitingUser(string groupName);*/
         /*Task resetWaitingPlayerToPrepareToViewGameHistory(string groupName);*/
         Task<Users?> whoIsDiscussingNext(string groupName);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="votePerson"></param>
+        /// <param name="fromWho"></param>
+        /// <param name="everyoneFinishVoting">True, meaning there are other users did not finish voting. 
+        /// False, all user finish voting and return the result</param>
+        /// <returns></returns>
         Task<int> votePerson(string groupName, string votePerson, string fromWho, bool everyoneFinishVoting);
         Task<int> whoWins(string groupName);
         // isNico is for game history
         Task<bool> setExile(string groupName, bool exileState, string exileName = "");
-        Task<int> increaseDay(string groupName);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="justGetDay">if justGetDay = true, then day will not increase.</param>
+        /// <returns></returns>
+        Task<int> increaseAndGetDay(string groupName, bool justGetDay = false);
         /// <summary>
         /// Set changed vote for current user. The user should have either name or identity.
         /// </summary>
@@ -93,6 +109,13 @@ namespace Domain.Interfaces
         Task<Users?> getLastNightExiledPlayer(string groupName);
         Task<ConcurrentDictionary<string, List<string>>?> getGameHistory(string groupName);
         Task<Users?> chooseARandomPlayerToExile(string groupName);
+        Task setDiscussingTopic(string groupName, string topic);
+        Task<string> getDiscussingTopic(string groupName);
+        Task setVoteResult(string groupName, string result);
+        Task<string> getVoteResult(string groupName);
+        Task setWhoWins(string groupName, int whoWins);
+        Task<int> getWhoWins(string groupName);
+        Task beforeGameCleanUp(string groupName);
         Task cleanUp(string groupName);
 
 
@@ -101,7 +124,7 @@ namespace Domain.Interfaces
         // These three methods are operations on ConnectionIdAndGroupName DB only!
         // We assume that there is only one user remain connected per group.
         Task<ConcurrentDictionary<string, List<string>>?> getConnectionIdAndGroupName();
-        Task<string?> removeConnectionIdFromGroup(string connectionId);
+        Task<string?> removeConnectionIdFromGroup(string connectionId, string groupName = "");
         Task removeGroupInConnectionIdAndGroupName(string groupName);
         Task<string?> getGroupNameByConnectionId(string connectionId);
         Task<bool> addConnectionIdToGroup(string connectionId, string groupName);
@@ -109,13 +132,10 @@ namespace Domain.Interfaces
 
         Task changeCurrentGameStatus(string groupName, string gameStatus);
         Task<string> getCurrentGameStatus(string groupName);
-        Task<bool> getViewedIdentity(string groupName, string name);
-        Task playerViewedIdentity(string groupName, string name);
-        Task<bool> getViewedExileResult(string groupName, string name);
-        Task playerViewedExileResult(string groupName, string name);
-        Task resetAllViewedExileResultState(string groupName);
-        Task<bool> addOfflineUser(string groupName, Users user);
-        Task<Users?> removeOfflineUser(string groupName, string userName);
+        Task<bool> getViewedResult(string groupName, string name);
+        Task setViewedResult(string groupName, string name);
+        Task resetAllViewedResultState(string groupName);
+        Task<List<Users>?> doesAllPlayerViewedResult(string groupName);
         Task<List<Users>?> getListOfOfflineUsers(string groupName);
         Task<Users?> getWhoIsCurrentlyDiscussing(string groupName);
         /// <summary>
@@ -123,6 +143,10 @@ namespace Domain.Interfaces
         /// </summary>
         /// <param name="connectionId"></param>
         /// <returns></returns>
-        Task<Users?> removeUserFromGroupByConnectionId(string connectionId);
+        Task<Users?> removeUserFromGroupByConnectionIdAndSetOfflineTrue(string connectionId);
+        Task setOfflineFalse(string groupName, string name);
+        Task setNewConnectionId(string groupName, string name, string newConnectionId);
+        Task setFirstTimeConnectToFalse(string groupName, string name);
+        Task<bool> getFirstTimeConnect(string groupName, string name);
     }
 }

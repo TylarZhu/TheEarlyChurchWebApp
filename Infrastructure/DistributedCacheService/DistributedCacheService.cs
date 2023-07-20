@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using StackExchange.Redis;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Principal;
 using System.Threading;
 using System.Xml.Linq;
 
@@ -203,6 +204,18 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        public async Task<string?> getConnectionIdByName(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                if(group.onlineUsers.TryGetValue(name, out Users? selectUser) && selectUser != null)
+                {
+                    return selectUser.connectionId;
+                }
+            }
+            return null;
+        }
         public async Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -252,7 +265,7 @@ namespace Infrastructure.DistributedCacheService
             string? value = await distributedCache.GetStringAsync(groupName + "VoteList");
             if (string.IsNullOrEmpty(value))
             {
-                return null!;
+                return null;
             }
             ConcurrentDictionary<string, double>? convert = JsonConvert.DeserializeObject<ConcurrentDictionary<string, double>>(value);
             return convert;
@@ -307,7 +320,7 @@ namespace Infrastructure.DistributedCacheService
             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             return true;
         }
-        public async Task<bool> decreaseWaitingUsers(string groupName)
+        /*public async Task<bool> decreaseWaitingUsers(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
@@ -337,8 +350,8 @@ namespace Infrastructure.DistributedCacheService
                 }
             }
             return true;
-        }
-        public async Task<bool> addWaitingUser(string groupName)
+        }*/
+        /*public async Task<bool> addWaitingUser(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
@@ -356,7 +369,7 @@ namespace Infrastructure.DistributedCacheService
                 }
             }
             return false;
-        }
+        }*/
         public async Task<Users?> whoIsDiscussingNext(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -403,9 +416,8 @@ namespace Infrastructure.DistributedCacheService
         /// <param name="votePerson"></param>
         /// <param name="fromWho"></param>
         /// <returns> 
-        ///     return true, meanning all user finish voting.
-        ///     return false, meaning stil user did not finish voting.
-        ///     return 0, meaning not all user finish voting or an error occur.
+        ///     return -1, meaning an error occur.
+        ///     return 0, meaning not all user finish voting.
         ///     return 1, meaning a christian is vote out.
         ///     return 2, meaning a judasim is vote out.
         ///     return 3, meaning there is a tie, no one is vote out.
@@ -469,19 +481,19 @@ namespace Infrastructure.DistributedCacheService
 
                         AddNewMessageIntoGroup(group, $"{users.name} lost all his/her vote weight and his identity is {users.identity}!");
                         UpdateHelper.TryUpdateCustom(group.onlineUsers, voteHighestPerson.Item1,
-                        x =>
-                        {
-                            x.changedVote = 0;
-                            x.disempowering = true;
-                            return x;
-                        });
-
+                            x =>
+                            {
+                                x.changedVote = 0;
+                                x.disempowering = true;
+                                return x;
+                            });
                     }
                     voteList.Clear();
                     await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     await updateListAsync(groupName, voteList);
                     return returnType;
                 }
+                return 0;
             }
             return -1;
         }
@@ -556,13 +568,16 @@ namespace Infrastructure.DistributedCacheService
             }
             return false;
         }
-        public async Task<int> increaseDay(string groupName)
+        public async Task<int> increaseAndGetDay(string groupName, bool justGetDay = false)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                group.day++;
-                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                if (!justGetDay)
+                {
+                    group.day++;
+                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                }
                 return group.day;
             }
             return -1;
@@ -730,14 +745,14 @@ namespace Infrastructure.DistributedCacheService
                     addLostVote(group, user);
                     group.lastNightExiledPlayer = user;
                     // offline user can still be exiled but we cannot decrease numberofWaitingUser
-                    if (!user.offLine)
+                    /*if (!user.offLine)
                     {
                         UpdateHelper.TryUpdateCustom(group.numberofWaitingUser, "WaitingUsers",
                             x => {
                                 x--;
                                 return x;
                             });
-                    }
+                    }*/
                     AddNewMessageIntoGroup(group, $"{user.name} has been exiled! His/her identity is {user.identity}!");
                     await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     return user;
@@ -826,7 +841,69 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
-
+        public async Task setDiscussingTopic(string groupName, string topic)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.discussingTopic = topic;
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task<string> getDiscussingTopic(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.discussingTopic;
+            }
+            return "";
+        }
+        public async Task setVoteResult(string groupName, string result)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.voteResult = result;
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task<string> getVoteResult(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.voteResult;
+            }
+            return "";
+        }
+        public async Task setWhoWins(string groupName, int whoWins)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.whoWins = whoWins;
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task<int> getWhoWins(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.whoWins;
+            }
+            return -1;
+        }
+        public async Task beforeGameCleanUp(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.beforeGameCleanUp();
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
         public async Task cleanUp(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -847,8 +924,7 @@ namespace Infrastructure.DistributedCacheService
                             x.disempowering = false;
                             x.aboutToExile = false;
                             x.offLine = false;
-                            x.viewedIdentity = false;
-                            x.viewedExileResult = false;
+                            x.viewedResult = false;
                             return x;
                         });
                 }
@@ -869,31 +945,47 @@ namespace Infrastructure.DistributedCacheService
                     JsonConvert.DeserializeObject<ConcurrentDictionary<string, List<string>>>(value);
             return convert;
         }
-        public async Task<string?> removeConnectionIdFromGroup(string connectionId)
+        public async Task<string?> removeConnectionIdFromGroup(string connectionId, string groupName = "")
         {
             ConcurrentDictionary<string, List<string>>? ConnectionIdAndGroupName = await getConnectionIdAndGroupName();
             if (ConnectionIdAndGroupName != null)
             {
-                foreach (KeyValuePair<string, List<string>> valuePair in ConnectionIdAndGroupName)
+                if(string.IsNullOrEmpty(groupName))
                 {
-                    if (!string.IsNullOrEmpty(valuePair.Value.FirstOrDefault(x => x == connectionId)))
+                    foreach (KeyValuePair<string, List<string>> valuePair in ConnectionIdAndGroupName)
                     {
-                        if (UpdateHelper.TryUpdateCustom(ConnectionIdAndGroupName, valuePair.Key,
-                            x =>
-                            {
-                                x.Remove(connectionId);
-                                return x;
-                            })
-                        )
+                        if (!string.IsNullOrEmpty(valuePair.Value.FirstOrDefault(x => x == connectionId)))
                         {
+                            UpdateHelper.TryUpdateCustom(ConnectionIdAndGroupName, valuePair.Key,
+                                x =>
+                                {
+                                    x.Remove(connectionId);
+                                    return x;
+                                });
                             if (valuePair.Value.Count == 0)
                             {
                                 ConnectionIdAndGroupName.TryRemove(valuePair.Key, out _);
                             }
                             await distributedCache.SetStringAsync("ConnectionIdAndGroupName", JsonConvert.SerializeObject(ConnectionIdAndGroupName));
                             return valuePair.Key;
+                            
                         }
                     }
+                }
+                else
+                {
+                    UpdateHelper.TryUpdateCustom(ConnectionIdAndGroupName, groupName,
+                        x =>
+                        {
+                            x.Remove(connectionId);
+                            return x;
+                        });
+                    if (ConnectionIdAndGroupName.TryGetValue(groupName, out List<string>? connectionIds) && connectionIds.Count == 0)
+                    {
+                        ConnectionIdAndGroupName.TryRemove(groupName, out _);
+                    }
+                    await distributedCache.SetStringAsync("ConnectionIdAndGroupName", JsonConvert.SerializeObject(ConnectionIdAndGroupName));
+                    return groupName;
                 }
             }
             return null;
@@ -977,7 +1069,15 @@ namespace Infrastructure.DistributedCacheService
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                group.currentGameStatus = gameStatus;
+                if(!group.currentGameStatus.TryGetValue("currentGameStatus", out string? _))
+                {
+                    group.currentGameStatus.TryAdd("currentGameStatus", gameStatus);
+                }
+                else
+                {
+                    group.currentGameStatus.TryRemove("currentGameStatus", out string? _);
+                    group.currentGameStatus.TryAdd("currentGameStatus", gameStatus);
+                }
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
         }
@@ -986,51 +1086,27 @@ namespace Infrastructure.DistributedCacheService
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                return group.currentGameStatus;
+                if(group.currentGameStatus.TryGetValue("currentGameStatus", out string? value) && !string.IsNullOrEmpty(value))
+                {
+                    return value;
+                }
             }
             return "";
         }
 
-        public async Task<bool> getViewedIdentity(string groupName, string name)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if (group != null)
-            {
-                if(group.onlineUsers.TryGetValue(name, out Users? value) && value != null)
-                {
-                    return value.viewedIdentity;
-                }
-            }
-            return true;
-        }
-        public async Task playerViewedIdentity(string groupName, string name)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if (group != null)
-            {
-                UpdateHelper.TryUpdateCustom(group.onlineUsers, name, 
-                    x =>
-                    {
-                        x.viewedIdentity = true;
-                        return x;
-                    });
-                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
-            }
-        }
-
-        public async Task<bool> getViewedExileResult(string groupName, string name)
+        public async Task<bool> getViewedResult(string groupName, string name)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
                 if (group.onlineUsers.TryGetValue(name, out Users? value) && value != null)
                 {
-                    return value.viewedExileResult;
+                    return value.viewedResult;
                 }
             }
             return true;
         }
-        public async Task playerViewedExileResult(string groupName, string name)
+        public async Task setViewedResult(string groupName, string name)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
@@ -1038,71 +1114,65 @@ namespace Infrastructure.DistributedCacheService
                 UpdateHelper.TryUpdateCustom(group.onlineUsers, name,
                     x =>
                     {
-                        x.viewedExileResult = true;
+                        x.viewedResult = true;
                         return x;
                     });
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
         }
-        public async Task resetAllViewedExileResultState(string groupName)
+        public async Task resetAllViewedResultState(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                foreach(Users user in group.onlineUsers.Values)
+                foreach(KeyValuePair<string, Users> user in group.onlineUsers)
                 {
-                    UpdateHelper.TryUpdateCustom(group.onlineUsers, user.name,
-                        x =>
-                        {
-                            x.viewedExileResult = false;
-                            return x;
-                        });
+                    // if player is not offline, then set viewedResult to false.
+                    // For player is offline, keep the viewedResult to true.
+                    // Because when player is back online, he already passed the current game state
+                    if (!user.Value.offLine) 
+                    {
+                        UpdateHelper.TryUpdateCustom(group.onlineUsers, user.Value.name,
+                           x =>
+                           {
+                               x.viewedResult = false;
+                               return x;
+                           });
+                    }
                 }
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
         }
-
-        public async Task<bool> addOfflineUser(string groupName, Users user)
+        public async Task<List<Users>?> doesAllPlayerViewedResult(string groupName)
         {
+            /*List<Users> usersList = new List<Users>();*/
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                if(group.offlineUsers.TryAdd(user.name, user))
-                {
-                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
-                    return true;
-                }
-            }
-            return false;
-        }
-        public async Task<Users?> removeOfflineUser(string groupName, string userName)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if (group != null)
-            {
-                if (group.offlineUsers.TryRemove(userName, out Users? removeUser) && removeUser != null)
-                {
-                    await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
-                    return removeUser;
-                }
+                // if the player is online, ingame and does not view the result, then we need to wait on this player.
+                return group.onlineUsers.Values.Where(x => !x.offLine && x.inGame && !x.viewedResult).ToList();
+                /*                foreach (KeyValuePair<string, Users> user in group.onlineUsers)
+                                {
+                                    if(!user.Value.offLine && user.Value.inGame && !user.Value.viewedResult)
+                                    {
+                                        usersList.Add(user.Value);
+                                    }
+                                }*/
+                /*return usersList;*/
             }
             return null;
         }
+
         public async Task<List<Users>?> getListOfOfflineUsers(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                List<Users> offlineUsers = new List<Users>();
-                foreach(KeyValuePair<string, Users> valuePair in group.offlineUsers)
-                {
-                    offlineUsers.Add(valuePair.Value);
-                }
-                return offlineUsers;
+                return group.onlineUsers.Values.Where(x => x.offLine).ToList();
             }
             return null;
         }
-        public async Task<Users?> removeUserFromGroupByConnectionId(string connectionId)
+        public async Task<Users?> removeUserFromGroupByConnectionIdAndSetOfflineTrue(string connectionId)
         {
             string? groupName = await getGroupNameByConnectionId(connectionId);
             if (!string.IsNullOrEmpty(groupName))
@@ -1133,6 +1203,34 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        public async Task setOfflineFalse(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                UpdateHelper.TryUpdateCustom(group.onlineUsers, name, 
+                    x =>
+                    {
+                        x.offLine = false;
+                        return x;
+                    });
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task setNewConnectionId(string groupName, string name, string newConnectionId)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                UpdateHelper.TryUpdateCustom(group.onlineUsers, name,
+                    x =>
+                    {
+                        x.connectionId = newConnectionId;
+                        return x;
+                    });
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
         public async Task<Users?> getWhoIsCurrentlyDiscussing(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -1141,6 +1239,32 @@ namespace Infrastructure.DistributedCacheService
                 return group.WhoIsCurrentlyDiscussing;
             }
             return null;
+        }
+        public async Task setFirstTimeConnectToFalse(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                UpdateHelper.TryUpdateCustom(group.onlineUsers, name,
+                    x =>
+                    {
+                        x.isFirstTimeConnect = false;
+                        return x;
+                    });
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task<bool> getFirstTimeConnect(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                if(group.onlineUsers.TryGetValue(name, out Users? user) && user != null)
+                {
+                    return user.isFirstTimeConnect;
+                }
+            }
+            return true;
         }
 
         //private methods

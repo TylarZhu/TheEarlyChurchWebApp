@@ -41,7 +41,7 @@ namespace WebAPI.Controllers
             }
 
             // update all other users in group that a new users has just joined.
-            await _hub.Clients.Group(newUser.groupName).updateOnlineUserList(
+            await _hub.Clients.Group(newUser.groupName).updateUserList(
                await redisCacheService.getAllUsers(newUser.groupName));
 
             Users? groupLeader = await redisCacheService.getGroupLeaderFromGroup(newUser.groupName);
@@ -126,7 +126,7 @@ namespace WebAPI.Controllers
             Users? leaveUser = await redisCacheService.removeUserFromGroup(groupName, userName);
             if (leaveUser != null)
             {
-                await _hub.Clients.Group(groupName).updateOnlineUserList(
+                await _hub.Clients.Group(groupName).updateUserList(
                     await redisCacheService.getAllUsers(groupName));
 
                 // if the group is not empty and the current leaving user is the group leader,
@@ -148,7 +148,7 @@ namespace WebAPI.Controllers
                 return NotFound(false);
             }
         }
-        [HttpDelete("userLeaveTheGameByConnectionId/{connectionId}")]
+        /*[HttpDelete("userLeaveTheGameByConnectionId/{connectionId}")]
         public async Task<ActionResult> userLeaveTheGameByConnectionId(string connectionId)
         {
             Users? leaveUser = await redisCacheService.removeUserFromGroupByConnectionId(connectionId);
@@ -169,6 +169,6 @@ namespace WebAPI.Controllers
                 }
             }
             return BadRequest();
-        }
+        }*/
     }
 }

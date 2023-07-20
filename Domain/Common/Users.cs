@@ -26,13 +26,9 @@
         public bool inGame { get; set; } = true;
         public bool offLine { get; set; } = false;
 
-        // This property is used for user disconnected with hub and we want to know if he viewed identity or not,
-        // because the user might viewed identity and disconnect, so we do not want to decrease waiting user twice.
-        // this field do not need to reset, because every game players will view identity togerther once.
-        public bool viewedIdentity { get; set; } = false;
-
-        // this field need to be reset after nightRoundEnd.
-        public bool viewedExileResult{ get; set; } = false;
+        public bool viewedResult { get; set; } = false;
+        // This field turn to false when user first connect to server. Use for reconnection 
+        public bool isFirstTimeConnect { get; set; } = true;
 
         // This property is used for discusstion round.
         // because Online Users are randomly placed, therefore we cannot use any loop.

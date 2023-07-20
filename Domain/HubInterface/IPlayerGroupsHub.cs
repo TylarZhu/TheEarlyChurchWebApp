@@ -2,6 +2,7 @@
 using Domain.Common;
 using Domain.DBEntities;
 using System.Collections.Concurrent;
+using System.Xml.Linq;
 
 namespace Domain.HubInterface
 {
@@ -10,13 +11,13 @@ namespace Domain.HubInterface
         // type is either message or error
         /*Task ReceiveMessages(List<Message> messages);*/
         Task CreateNewUserJoinNewGroup(string connectionId, string groupName, string username, string numberOfPlayers);
-        Task updateOnlineUserList(List<Users> onlineUsers);
+        Task updateUserList(List<Users> onlineUsers);
         Task leaveGroupUserConnectionId(string connectionId);
         Task updateGroupLeader(CreateNewUser users);
         Task GameStop();
         Task updatePlayersIdentities(string identity);
         Task getMaxPlayersInGroup(string max);
-        Task IdentitiesExplanation(List<string> ex);
+        Task IdentitiesExplanation(List<string> ex, bool openIdentitiesExplanationModal = true);
 
         /// <summary>
         /// User who invoke this method finishs the current action and wait for next step.
@@ -58,5 +59,10 @@ namespace Domain.HubInterface
         Task JudasCheckRoundStateFinish(string groupName);
         Task finishedToViewTheExileResultStateFinish(string groupName, string leaveUserName);
         Task spiritualQuestionAnsweredCorrectOrNotStateFinish(string groupName, string leaveUserName);
+        Task stillWaitingFor(List<Users> didNotViewedUsers);
+        Task openOrCloseExileResultModal(bool status);
+        Task repostOnlineUser(string newConnectionId, string groupName, string name, string maxPlayer);
+        Task redirectToHomePage();
+        Task closeWaitOthersToVoteModel();
     }
 }

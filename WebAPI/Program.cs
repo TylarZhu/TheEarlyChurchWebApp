@@ -3,6 +3,8 @@ using Infrastructure.DBService;
 using Domain.Interfaces;
 using WebAPI;
 using Infrastructure.DistributedCacheService;
+using Microsoft.Azure.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,10 +35,15 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddScoped<ICacheService, DistributedCacheService>();
 
 /*builder.Services.AddSignalR();*/
+/*builder.Services.AddSignalR().AddAzureSignalR(options =>
+{
+    builder.Configuration.GetConnectionString("SignalR");
+    *//*options.ServerStickyMode = ServerStickyMode.Required;*//*
+});*/
 builder.Services.AddSignalR().AddAzureSignalR(builder.Configuration.GetConnectionString("SignalR"));
 
 string policyName = "defaultCorsPolicy";
-/*builder.Services.AddCors(options =>
+builder.Services.AddCors(options =>
     options.AddPolicy(policyName, builder =>
     {
         builder.WithOrigins("https://localhost:4200")
@@ -44,8 +51,8 @@ string policyName = "defaultCorsPolicy";
             .AllowAnyHeader()
             .AllowCredentials();
     })
-);*/
-builder.Services.AddCors(options =>
+);
+/*builder.Services.AddCors(options =>
     options.AddPolicy(policyName, builder =>
     {
         builder.WithOrigins("https://theearlychurchgameangular.azurewebsites.net")
@@ -53,7 +60,7 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowCredentials();
     })
-);
+);*/
 
 var app = builder.Build();
 

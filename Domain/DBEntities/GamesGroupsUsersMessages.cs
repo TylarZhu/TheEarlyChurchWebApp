@@ -11,9 +11,8 @@ namespace Domain.DBEntities
         // name -> player info
         public ConcurrentDictionary<string, Users> onlineUsers { get; set; } = new ConcurrentDictionary<string, Users>();
         // name -> offline player info
-        public ConcurrentDictionary<string, Users> offlineUsers { get; set; } = new ConcurrentDictionary<string, Users>();
         public ConcurrentDictionary<string, List<string>> history { get; set; } = new ConcurrentDictionary<string, List<string>>();
-        public ConcurrentDictionary<string, int> numberofWaitingUser = new ConcurrentDictionary<string, int>();
+        /*public ConcurrentDictionary<string, int> numberofWaitingUser = new ConcurrentDictionary<string, int>();*/
 
         // this is for John's ability, which he cannot fire duplicate person.
         // be aware that this array does not contain John himself.
@@ -24,7 +23,7 @@ namespace Domain.DBEntities
         public bool gameInProgess = false;
         // this field will only have value when gameInProgess = true
         // keep record of what current status is.
-        public string currentGameStatus = "";
+        public ConcurrentDictionary<string, string> currentGameStatus = new ConcurrentDictionary<string, string>();
         public int day { get; set; } = 1;
         public double judaismLostVote { get; set; } = 0.0;
         public double judaismTotalVote { get; set; } = 0.0;
@@ -33,12 +32,15 @@ namespace Domain.DBEntities
         public bool resetWaitingUserForGameHistory { get; set; } = false;
         public Users? lastNightExiledPlayer { get; set; } = null;
 
+        // this is for reconnected users.
+        public string discussingTopic { get; set; } = "";
+        public string voteResult { get; set; } = "";
+        public int whoWins { get; set; } = -1;
+
         public GamesGroupsUsersMessages(string groupName, int maxPlayers)
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
-            /*this.maxPlayers = 3;*/
-            numberofWaitingUser.TryAdd("WaitingUsers", maxPlayers);
         }
         public List<Identities>? issuedIdentityCards()
         {
@@ -109,8 +111,6 @@ namespace Domain.DBEntities
         public void cleanUp()
         {
             history.Clear();
-            numberofWaitingUser.Clear();
-            numberofWaitingUser.TryAdd("WaitingUsers", maxPlayers);
             JohnFireList.Clear();
             day = 1;
             judaismLostVote = 0.0;
@@ -120,8 +120,14 @@ namespace Domain.DBEntities
             lastNightExiledPlayer = null;
             resetWaitingUserForGameHistory = false;
             gameInProgess = false;
-            currentGameStatus = "";
             WhoIsCurrentlyDiscussing = null;
+        }
+        public void beforeGameCleanUp()
+        {
+            currentGameStatus.Clear();
+            discussingTopic = "";
+            voteResult = "";
+            whoWins = -1;
         }
     }
 }

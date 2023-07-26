@@ -15,9 +15,10 @@ namespace Domain.HubInterface
         Task leaveGroupUserConnectionId(string connectionId);
         Task updateGroupLeader(CreateNewUser users);
         Task GameStop();
+        Task identityModalOpen(bool openIdentitiesExplanationModal);
         Task updatePlayersIdentities(string identity);
         Task getMaxPlayersInGroup(string max);
-        Task IdentitiesExplanation(List<string> ex, bool openIdentitiesExplanationModal = true);
+        Task IdentitiesExplanation(List<string> ex);
 
         /// <summary>
         /// User who invoke this method finishs the current action and wait for next step.
@@ -33,6 +34,7 @@ namespace Domain.HubInterface
         Task PriestROTSNicoMeet(string ROTSName, string priestName, string NicodemusName);
         Task PriestRound();
         Task RulerOfTheSynagogueMeeting();
+        Task PriestMeetingOnReconnect();
         Task NicoMeeting();
         Task priestExileRoundFinish();
         Task JudasCheckResult(bool status);
@@ -46,6 +48,7 @@ namespace Domain.HubInterface
         Task announceLastExiledPlayerInfo(bool status, string name = "");
         Task announceWinner(int winnerParty);
         Task announceGameHistory(ConcurrentDictionary<string, List<string>>? history);
+        Task updateGameMessageHistory(ConcurrentDictionary<string, List<string>>? gameMessageHistory);
         Task announceOffLinePlayer(List<string> playerNameList);
 
         // user refresh page or close tab
@@ -63,6 +66,7 @@ namespace Domain.HubInterface
         Task openOrCloseExileResultModal(bool status);
         Task repostOnlineUser(string newConnectionId, string groupName, string name, string maxPlayer);
         Task redirectToHomePage();
+        Task updateWaitingProgess(double currentNumOfViewingUser);
         Task closeWaitOthersToVoteModel();
     }
 }

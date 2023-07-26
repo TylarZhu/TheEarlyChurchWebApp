@@ -161,15 +161,63 @@ namespace Infrastructure.DistributedCacheService
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
         }
-/*        public async Task<Dictionary<string, List<string>>?> getAllMessagesInGroup(string groupName)
+        public async Task setGameMessageHistory(string groupName, string message = "", List<string>? messages = null)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if (group == null)
+            if (group != null)
             {
-                return null;
+                string addMessage = string.IsNullOrEmpty(message) ? "" : message;
+                if(messages != null)
+                {
+                    addMessage += "These players answered Spritual Questions correctly! (VP + 0.5): \n";
+                    foreach (string smallMessage in messages)
+                    {
+                        addMessage += smallMessage + "\n";
+                    }
+                }
+                if (group.GameMessageHistory.TryGetValue(group.day.ToString(), out List<string>? value) && value != null)
+                {
+                    UpdateHelper.TryUpdateCustom(group.GameMessageHistory, group.day.ToString(),
+                        x =>
+                        {
+                            x.Add(addMessage);
+                            return x;
+                        });
+                }
+                else
+                {
+                    group.GameMessageHistory.TryAdd(group.day.ToString(), new List<string>() { addMessage });
+                }
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
-            return group.message;
-        }*/
+        }
+        public async Task setWhoAnswerSpritualQuestionsCorrectly(string groupName, string name)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.whoAnswerSpritualQuestionsCorrectly.Add(name);
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        public async Task resetWhoAnswerSpritualQuestionsCorrectly(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                group.whoAnswerSpritualQuestionsCorrectly.Clear();
+                await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+            }
+        }
+        /*        public async Task<Dictionary<string, List<string>>?> getAllMessagesInGroup(string groupName)
+                {
+                    GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+                    if (group == null)
+                    {
+                        return null;
+                    }
+                    return group.message;
+                }*/
         public async Task<Users?> getGroupLeaderFromGroup(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -841,6 +889,25 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
+        public async Task<ConcurrentDictionary<string, List<string>>?> getGameMessageHistory(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.GameMessageHistory;
+            }
+            return null;
+
+        }
+        public async Task<List<string>?> getWhoAnswerSpritualQuestionsCorrectly(string groupName)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return group.whoAnswerSpritualQuestionsCorrectly;
+            }
+            return null;
+        }
         public async Task setDiscussingTopic(string groupName, string topic)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -877,7 +944,7 @@ namespace Infrastructure.DistributedCacheService
             }
             return "";
         }
-        public async Task setWhoWins(string groupName, int whoWins)
+        /*public async Task setWhoWins(string groupName, int whoWins)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
@@ -894,7 +961,7 @@ namespace Infrastructure.DistributedCacheService
                 return group.whoWins;
             }
             return -1;
-        }
+        }*/
         public async Task beforeGameCleanUp(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
@@ -903,6 +970,15 @@ namespace Infrastructure.DistributedCacheService
                 group.beforeGameCleanUp();
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
+        }
+        public async Task<double> getWaitingProgessPercentage(string groupName, int currentNumOfViewingUser)
+        {
+            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
+            if (group != null)
+            {
+                return (double) (group.maxPlayers - currentNumOfViewingUser) / group.maxPlayers * 100;
+            }
+            return -1.0;
         }
         public async Task cleanUp(string groupName)
         {
@@ -1094,19 +1170,7 @@ namespace Infrastructure.DistributedCacheService
             return "";
         }
 
-        public async Task<bool> getViewedResult(string groupName, string name)
-        {
-            GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
-            if (group != null)
-            {
-                if (group.onlineUsers.TryGetValue(name, out Users? value) && value != null)
-                {
-                    return value.viewedResult;
-                }
-            }
-            return true;
-        }
-        public async Task setViewedResult(string groupName, string name)
+        public async Task setViewedResultToTrue(string groupName, string name)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)

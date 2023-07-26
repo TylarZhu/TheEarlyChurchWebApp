@@ -53,9 +53,11 @@ namespace WebAPI
         public override async Task reconnectionToGame(string groupName, string name)
         {
             Users? user = await redisCacheService.getOneUserFromGroup(groupName, name);
-            // check if user first time to connect to server.
+            // if user != null, meaning the group is in game because OnDisconnectedAsync did not delete user.
+            // if user == null, meaning the group is not in game.
             if (user != null && user.connectionId != Context.ConnectionId)
             {
+                // hub operations
                 string newConnectionId = Context.ConnectionId;
                 await redisCacheService.addConnectionIdToGroup(groupName, newConnectionId);
                 await Groups.AddToGroupAsync(newConnectionId, groupName);
@@ -67,33 +69,32 @@ namespace WebAPI
                 {
                     await Clients.Client(newConnectionId).updateGroupLeader(new CreateNewUser(groupLeader.connectionId, groupLeader.name, groupName, "0"));
                 }
-                // if user != null, meaning the group is in game because OnDisconnectedAsync did not delete user.
-                // if user == null, meaning the group is not in game.
-                if (user != null && user.connectionId != newConnectionId)
-                {
-                    // basic operations
-                    await redisCacheService.setOfflineFalse(groupName, name);
-                    await redisCacheService.setNewConnectionId(groupName, name, newConnectionId);
+                
+                // basic operations
+                await redisCacheService.setOfflineFalse(groupName, name);
+                /*await redisCacheService.setViewedResultToTrue(groupName, name);*/
+                await redisCacheService.setNewConnectionId(groupName, name, newConnectionId);
 
-                    // if group is in game, then update game infomation.
-                    if (await redisCacheService.getGameInProgess(groupName))
+                // if group is in game, then update game infomation.
+                if (await redisCacheService.getGameInProgess(groupName))
+                {
+                    Explanation explanation = new Explanation();
+                    List<string>? ex = explanation.getExplanation(user.identity);
+                    if (ex != null)
                     {
-                        Explanation explanation = new Explanation();
-                        List<string>? ex = explanation.getExplanation(user.identity);
-                        if (ex != null)
-                        {
-                            await Clients.Client(newConnectionId).updatePlayersIdentities(user.identity.ToString());
-                            await Clients.Client(newConnectionId).IdentitiesExplanation(ex, false);
-                        }
-                        await Clients.Client(newConnectionId).updateExiledUsers(await redisCacheService.collectAllExileUserName(groupName));
-                        await announceOffLinePlayer(await redisCacheService.getListOfOfflineUsers(groupName), groupName);
-                        await Clients.Client(newConnectionId).changeDay(await redisCacheService.increaseAndGetDay(groupName, true));
-                        // if user is in game, then send infomation according to identity and day.
-                        if (user.inGame)
-                        {
-                            await onReconnectionGameOnStateReaction(await redisCacheService.getCurrentGameStatus(groupName), groupName, 
-                                await redisCacheService.getOneUserFromGroup(groupName, name) ?? null);
-                        }
+                        await Clients.Client(newConnectionId).updatePlayersIdentities(user.identity.ToString());
+                        await Clients.Client(newConnectionId).IdentitiesExplanation(ex);
+                        await Clients.Client(newConnectionId).identityModalOpen(false);
+                    }
+                    await Clients.Client(newConnectionId).updateExiledUsers(await redisCacheService.collectAllExileUserName(groupName));
+                    await announceOffLinePlayer(await redisCacheService.getListOfOfflineUsers(groupName), groupName);
+                    await Clients.Client(newConnectionId).changeDay(await redisCacheService.increaseAndGetDay(groupName, true));
+                    await Clients.Client(newConnectionId).updateGameMessageHistory(await redisCacheService.getGameMessageHistory(groupName));
+                    // if user is in game, then send infomation according to identity and day.
+                    if (user.inGame)
+                    {
+                        await onReconnectionGameOnStateReaction(await redisCacheService.getCurrentGameStatus(groupName), groupName, 
+                            await redisCacheService.getOneUserFromGroup(groupName, name) ?? null);
                     }
                 }
             }
@@ -234,7 +235,7 @@ namespace WebAPI
             }
             else if (currentGameStatus == "JudasCheckRoundState")
             {
-                if (leaveUser.identity == Identities.John)
+                if (leaveUser.identity == Identities.Judas)
                 {
                     Users? nextPlayer = await redisCacheService.getFirstOnlineUser(removeUserGroupName);
                     if (nextPlayer != null)
@@ -290,6 +291,18 @@ namespace WebAPI
                     if (Preist != null && Nico != null && Pharisee != null)
                     {
                         await Clients.Client(reconnectUser.connectionId).PriestROTSNicoMeet(Pharisee.name, Preist.name, Nico.name);
+                        if(reconnectUser.identity == Identities.Preist)
+                        {
+                            await Clients.Client(reconnectUser.connectionId).PriestMeetingOnReconnect();
+                        }
+                        if(reconnectUser.identity == Identities.Pharisee)
+                        {
+                            await Clients.Client(reconnectUser.connectionId).RulerOfTheSynagogueMeeting();
+                        }
+                        if(reconnectUser.identity == Identities.Nicodemus)
+                        {
+                            await Clients.Client(reconnectUser.connectionId).NicoMeeting();
+                        }
                     }
                 }
                 // ROTSInfoRound
@@ -311,7 +324,7 @@ namespace WebAPI
                     {
                         if (didNotViewedUsers.Any())
                         {
-                            await Clients.Client(groupName).stillWaitingFor(didNotViewedUsers);
+                            await Clients.Client(reconnectUser.connectionId).stillWaitingFor(didNotViewedUsers);
                             await Clients.Client(reconnectUser.connectionId).finishedViewIdentityAndWaitOnOtherPlayers(true);
                         }
                     }
@@ -337,15 +350,8 @@ namespace WebAPI
                         if (didNotViewedUsers.Any())
                         {
                             await Clients.Client(reconnectUser.connectionId).stillWaitingFor(didNotViewedUsers);
+                            await Clients.Client(reconnectUser.connectionId).finishVoteWaitForOthersOrVoteResult(true);
                         }  
-                    }
-                }
-                if(currentGameStatus == "WinnerAfterVoteState" || currentGameStatus == "ROTSInfoRoundState")
-                {
-                    await Clients.Client(groupName).finishVoteWaitForOthersOrVoteResult(false, await redisCacheService.getVoteResult(groupName));
-                    if(currentGameStatus == "WinnerAfterVoteState")
-                    {
-                        await Clients.Client(groupName).announceWinner(await redisCacheService.getWhoWins(groupName));
                     }
                 }
                 // skip PriestRoundState, because it could cause race condition.
@@ -381,10 +387,6 @@ namespace WebAPI
                             await Clients.Client(reconnectUser.connectionId).openOrCloseExileResultModal(true);
                         }
                     }
-                }
-                else if(currentGameStatus == "WinnerState")
-                {
-                    await Clients.Client(groupName).announceWinner(await redisCacheService.getWhoWins(groupName));
                 }
                 // skip spiritualQuestionAnsweredCorrectOrNotState
             }

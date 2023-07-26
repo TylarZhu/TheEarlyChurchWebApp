@@ -12,6 +12,8 @@ namespace Domain.DBEntities
         public ConcurrentDictionary<string, Users> onlineUsers { get; set; } = new ConcurrentDictionary<string, Users>();
         // name -> offline player info
         public ConcurrentDictionary<string, List<string>> history { get; set; } = new ConcurrentDictionary<string, List<string>>();
+        public ConcurrentDictionary<string, List<string>> GameMessageHistory { get; set; } = new ConcurrentDictionary<string, List<string>>();
+        public List<string> whoAnswerSpritualQuestionsCorrectly = new List<string>();
         /*public ConcurrentDictionary<string, int> numberofWaitingUser = new ConcurrentDictionary<string, int>();*/
 
         // this is for John's ability, which he cannot fire duplicate person.
@@ -35,12 +37,13 @@ namespace Domain.DBEntities
         // this is for reconnected users.
         public string discussingTopic { get; set; } = "";
         public string voteResult { get; set; } = "";
-        public int whoWins { get; set; } = -1;
+        /*public int whoWins { get; set; } = -1;*/
 
         public GamesGroupsUsersMessages(string groupName, int maxPlayers)
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
+            /*this.maxPlayers = 4;*/
         }
         public List<Identities>? issuedIdentityCards()
         {
@@ -53,7 +56,6 @@ namespace Domain.DBEntities
             identities.Add(Identities.Peter);
             identities.Add(Identities.John);
             identities.Add(Identities.Nicodemus);
-            
             if (maxPlayers % 2 != 0)
             {
                 int addChoice = rand.Next(0, 2);
@@ -111,6 +113,8 @@ namespace Domain.DBEntities
         public void cleanUp()
         {
             history.Clear();
+            GameMessageHistory.Clear();
+            whoAnswerSpritualQuestionsCorrectly.Clear();
             JohnFireList.Clear();
             day = 1;
             judaismLostVote = 0.0;
@@ -127,7 +131,7 @@ namespace Domain.DBEntities
             currentGameStatus.Clear();
             discussingTopic = "";
             voteResult = "";
-            whoWins = -1;
+            /*whoWins = -1;*/
         }
     }
 }

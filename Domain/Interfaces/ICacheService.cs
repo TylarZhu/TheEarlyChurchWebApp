@@ -18,7 +18,10 @@ namespace Domain.Interfaces
         Task<string> getMaxPlayersInGroup(string groupName);
         Task<Users?> getSpecificUserFromGroupByIdentity(string groupName, Identities identity);
         Task<string?> getConnectionIdByName(string groupName, string name);
-        
+        Task<ConcurrentDictionary<string, List<string>>?> getGameHistory(string groupName);
+        Task<ConcurrentDictionary<string, List<string>>?> getGameMessageHistory(string groupName);
+        Task<List<string>?> getWhoAnswerSpritualQuestionsCorrectly(string groupName);
+
 
         // Group and Users (set)
         Task SetNewGroupAsync(string groupName, GamesGroupsUsersMessages value, Users groupLeader, CancellationToken cancellationToken = default);
@@ -35,7 +38,9 @@ namespace Domain.Interfaces
         Task AddNewUsersToGroupAsync(string groupName, Users user, CancellationToken cancellationToken = default);
         void AddNewMessageIntoGroup(GamesGroupsUsersMessages group, string message);
         Task AddNewMessageIntoGroupAndSave(string groupName, string message);
-
+        Task setGameMessageHistory(string groupName, string message = "", List<string>? messages = null);
+        Task setWhoAnswerSpritualQuestionsCorrectly(string groupName, string name);
+        Task resetWhoAnswerSpritualQuestionsCorrectly(string groupName);
 
         // Group and Users (check)
         Task<bool> checkIfUserNameInGroupDuplicate(string groupName, string name);
@@ -107,15 +112,16 @@ namespace Domain.Interfaces
         Task<List<Users>> collectAllExileUserName(string groupName);
         Task<int> getDay(string groupName);
         Task<Users?> getLastNightExiledPlayer(string groupName);
-        Task<ConcurrentDictionary<string, List<string>>?> getGameHistory(string groupName);
         Task<Users?> chooseARandomPlayerToExile(string groupName);
         Task setDiscussingTopic(string groupName, string topic);
         Task<string> getDiscussingTopic(string groupName);
         Task setVoteResult(string groupName, string result);
         Task<string> getVoteResult(string groupName);
-        Task setWhoWins(string groupName, int whoWins);
-        Task<int> getWhoWins(string groupName);
+        /*Task setWhoWins(string groupName, int whoWins);
+        Task<int> getWhoWins(string groupName);*/
         Task beforeGameCleanUp(string groupName);
+        Task<double> getWaitingProgessPercentage(string groupName, int currentNumOfViewingUser);
+        
         Task cleanUp(string groupName);
 
 
@@ -132,8 +138,7 @@ namespace Domain.Interfaces
 
         Task changeCurrentGameStatus(string groupName, string gameStatus);
         Task<string> getCurrentGameStatus(string groupName);
-        Task<bool> getViewedResult(string groupName, string name);
-        Task setViewedResult(string groupName, string name);
+        Task setViewedResultToTrue(string groupName, string name);
         Task resetAllViewedResultState(string groupName);
         Task<List<Users>?> doesAllPlayerViewedResult(string groupName);
         Task<List<Users>?> getListOfOfflineUsers(string groupName);

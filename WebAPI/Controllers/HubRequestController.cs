@@ -121,7 +121,7 @@ namespace WebAPI.Controllers
             return BadRequest();
         }
         [HttpDelete("userLeaveTheGame/{groupName}/{userName}/{gameOn}")]
-        public async Task<ActionResult<Users>> userLeaveTheGame(string groupName, string userName, bool gameOn = false)
+        public async Task<ActionResult<Users>> userLeaveTheGame(string groupName, string userName)
         {
             Users? leaveUser = await redisCacheService.removeUserFromGroup(groupName, userName);
             if (leaveUser != null)
@@ -135,11 +135,6 @@ namespace WebAPI.Controllers
                 {
                     Users? onlineUser = await redisCacheService.getGroupLeaderFromGroup(groupName);
                     await _hub.Clients.Group(groupName).updateGroupLeader(new CreateNewUser(onlineUser!.connectionId, onlineUser.name, groupName, "0"));
-                }
-                if (gameOn)
-                {
-                    // TODO: GameStop();
-                    await _hub.Clients.Group(groupName).GameStop();
                 }
                 return Ok(leaveUser);
             }

@@ -14,7 +14,6 @@ namespace Domain.HubInterface
         Task updateUserList(List<Users> onlineUsers);
         Task leaveGroupUserConnectionId(string connectionId);
         Task updateGroupLeader(CreateNewUser users);
-        Task GameStop();
         Task identityModalOpen(bool openIdentitiesExplanationModal);
         Task updatePlayersIdentities(string identity);
         Task getMaxPlayersInGroup(string max);

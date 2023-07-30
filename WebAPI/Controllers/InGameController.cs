@@ -367,13 +367,13 @@ namespace WebAPI.Controllers
             Users? John = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.John);
             if(John != null)
             {
-                // if John is in game and he did not fire all the user, then proceed to John's turn.
-                if(!John.offLine && John.inGame && !await redisCacheService.checkJohnFireAllOrNot(groupName))
+                // if John is not offline and he is in game and did not disempowered, then proceed to John's turn.
+                if(!John.offLine && John.inGame && !John.disempowering && !await redisCacheService.checkJohnFireAllOrNot(groupName))
                 {
                     // if this method is invoked by the progarm, then let the user to choose.
                     if(didUserChoose)
                     {
-                        if (fireName != "NULL" && !John.disempowering)
+                        if (fireName != "NULL")
                         {
                             await redisCacheService.changeVote(groupName, name: fireName, option: "half");
                             await redisCacheService.AddToJohnFireList(groupName, fireName);
@@ -498,17 +498,10 @@ namespace WebAPI.Controllers
                 switch (await redisCacheService.whoWins(groupName))
                 {
                     case 1:
-                        /*await redisCacheService.changeCurrentGameStatus(groupName, "WinnerState");
-                        await redisCacheService.setWhoWins(groupName, 1);*/
-                        // clear the previous vote result, so it will not present in the winning modal.
-                        /*await _hub.Clients.Group(groupName).finishVoteWaitForOthersOrVoteResult(false, "");*/
                         await _hub.Clients.Group(groupName).announceWinner(1);
                         await announceGameHistoryAndCleanUp(groupName);
                         break;
                     case 2:
-                        /*await redisCacheService.changeCurrentGameStatus(groupName, "WinnerState");
-                        await redisCacheService.setWhoWins(groupName, 2);*/
-                        /*await _hub.Clients.Group(groupName).finishVoteWaitForOthersOrVoteResult(false, "");*/
                         await _hub.Clients.Group(groupName).announceWinner(2);
                         await announceGameHistoryAndCleanUp(groupName);
                         break;

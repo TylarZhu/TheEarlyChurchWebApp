@@ -369,7 +369,8 @@ namespace WebAPI.Controllers
             Users? John = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.John);
             if(John != null)
             {
-                // if John is not offline and he is in game and did not disempowered, then proceed to John's turn.
+                // if John is not offline and he is in game and did not disempowered and there are still player who did not been fired
+                // then proceed to John's turn.
                 if(!John.offLine && John.inGame && !John.disempowering && !await redisCacheService.checkJohnFireAllOrNot(groupName))
                 {
                     // if this method is invoked by the progarm, then let the user to choose.

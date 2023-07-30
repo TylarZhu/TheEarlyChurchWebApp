@@ -206,20 +206,22 @@ namespace WebAPI.Controllers
             Users? ROTS = await redisCacheService.getSpecificUserFromGroupByIdentity(groupName, Identities.Pharisee);
             if (ROTS != null)
             {
-                if(ROTS.inGame && !ROTS.offLine)
+                if(!ROTS.offLine && ROTS.inGame && !ROTS.disempowering)
                 {
-                    if(!ROTS.disempowering)
+                    Users? lastExiledPlayer = await redisCacheService.getLastNightExiledPlayer(groupName);
+                    if (lastExiledPlayer != null &&
+                        (lastExiledPlayer.identity == Identities.John ||
+                        lastExiledPlayer.identity == Identities.Peter ||
+                        lastExiledPlayer.identity == Identities.Laity))
                     {
-                        Users? lastExiledPlayer = await redisCacheService.getLastNightExiledPlayer(groupName);
-                        if (lastExiledPlayer != null &&
-                            (lastExiledPlayer.identity == Identities.John ||
-                            lastExiledPlayer.identity == Identities.Peter ||
-                            lastExiledPlayer.identity == Identities.Laity))
-                        {
-                            await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(true, lastExiledPlayer.name);
-                        }
+                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(true, lastExiledPlayer.name);
                     }
-                    await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);
+                    else
+                    {
+                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);
+                    }
+                    
+                    /*await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);*/
                 }
                 // New Rule: Judas and Priest can meet after day 3.
                 if(await redisCacheService.getDay(groupName) >= 3)

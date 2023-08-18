@@ -5,8 +5,7 @@ using Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Domain.DBEntities;
-using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
+using WebAPI.HubMethods;
 
 namespace WebAPI.Controllers
 {
@@ -128,7 +127,6 @@ namespace WebAPI.Controllers
         [HttpPost("voteHimOrHer/{groupName}/{votePerson}/{fromWho}")]
         public async Task<ActionResult<string>> voteHimOrHer(string groupName, string votePerson, string fromWho)
         {
-            /*bool wait = await redisCacheService.decreaseWaitingUsers(groupName);*/
             await redisCacheService.setViewedResultToTrue(groupName, fromWho);
             List<Users>? didNotViewedUsers = await redisCacheService.doesAllPlayerViewedResult(groupName);
             if (didNotViewedUsers == null)
@@ -176,22 +174,17 @@ namespace WebAPI.Controllers
                 int winner = await redisCacheService.whoWins(groupName);
                 if (winner == 1)
                 {
-                    /*await redisCacheService.changeCurrentGameStatus(groupName, "WinnerAfterVoteState");
-                    await redisCacheService.setWhoWins(groupName, 1);*/
                     await _hub.Clients.Group(groupName).announceWinner(1);
                     await announceGameHistoryAndCleanUp(groupName);
                 }
                 else if (winner == 2)
                 {
-                   /* await redisCacheService.changeCurrentGameStatus(groupName, "WinnerAfterVoteState");
-                    await redisCacheService.setWhoWins(groupName, 2);*/
                     await _hub.Clients.Group(groupName).announceWinner(2);
                     await announceGameHistoryAndCleanUp(groupName);
                 }
                 else
                 {
                     // changeCurrentGameStatus before reset viewedResult, in case user reconnect and put on waiting again.
-                    /*await redisCacheService.changeCurrentGameStatus(groupName, "ROTSInfoRoundState");*/
                     await redisCacheService.resetAllViewedResultState(groupName);
                     await _hub.Clients.Group(groupName).updateWaitingProgess(0.0);
                     await _hub.Clients.GroupExcept(groupName, await getNotInGameUsersConnectiondIds(groupName))
@@ -208,20 +201,21 @@ namespace WebAPI.Controllers
             {
                 if(!ROTS.offLine && ROTS.inGame && !ROTS.disempowering)
                 {
-                    Users? lastExiledPlayer = await redisCacheService.getLastNightExiledPlayer(groupName);
-                    if (lastExiledPlayer != null &&
-                        (lastExiledPlayer.identity == Identities.John ||
-                        lastExiledPlayer.identity == Identities.Peter ||
-                        lastExiledPlayer.identity == Identities.Laity))
+                    (string name, Identities identity)? lastExiledPlayer = await redisCacheService.getLastNightExiledPlayer(groupName);
+                    if (lastExiledPlayer == null)
                     {
-                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(true, lastExiledPlayer.name);
+                        return BadRequest();
+                    }
+                    if (lastExiledPlayer.Value.identity == Identities.John ||
+                        lastExiledPlayer.Value.identity == Identities.Peter ||
+                        lastExiledPlayer.Value.identity == Identities.Laity)
+                    {
+                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(true, lastExiledPlayer.Value.name);
                     }
                     else
                     {
-                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);
+                        await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false, lastExiledPlayer.Value.name);
                     }
-                    
-                    /*await _hub.Clients.Client(ROTS.connectionId).announceLastExiledPlayerInfo(false);*/
                 }
                 // New Rule: Judas and Priest can meet after day 3.
                 if(await redisCacheService.getDay(groupName) >= 3)
@@ -277,7 +271,7 @@ namespace WebAPI.Controllers
                 {
                     if (string.IsNullOrEmpty(JudasHint))
                     {
-                        await _hub.Clients.Client(Judas.connectionId).JudasGivePriestHint(Priest.name);
+                        await _hub.Clients.Client(Judas.connectionId).JudasGivePriestHint();
                         return Ok();
                     }
                     else
@@ -526,7 +520,7 @@ namespace WebAPI.Controllers
                 if(bool.TryParse(playerChoiceCorrectOrNot, out bool result) && result)
                 {
                     await redisCacheService.setWhoAnswerSpritualQuestionsCorrectly(groupName, name);
-                    await redisCacheService.changeVote(groupName, name, changedVote: 0.5, option: "add");
+                    await redisCacheService.changeVote(groupName, name, changedVote: 0.25, option: "add");
                 }
             }
             Users? nextDicussingUser = await redisCacheService.whoIsDiscussingNext(groupName);
@@ -555,6 +549,7 @@ namespace WebAPI.Controllers
                 string topic = await randomPickATopic(groupName);
                 await _hub.Clients.GroupExcept(groupName, await getNotInGameUsersConnectiondIds(groupName))
                     .nextStep(new NextStep("discussing", new List<string>() { topic }));
+                await redisCacheService.changeCurrentGameStatus(groupName, "DiscussingState");
                 await whoIsDiscussing(groupName);
                 return Ok();
             }

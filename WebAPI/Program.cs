@@ -1,10 +1,9 @@
 using Infrastructure.MongoDBSetUp;
 using Infrastructure.DBService;
 using Domain.Interfaces;
-using WebAPI;
 using Infrastructure.DistributedCacheService;
 using Microsoft.Azure.SignalR;
-using Microsoft.Extensions.DependencyInjection;
+using WebAPI.HubMethods;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,5 +85,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<PlayerGroupsHubBase>("/PlayerGroupsHub");
+/*app.MapHub<GameReceiveFromClientsHubBase>("/GameReceiveFromClients");*/
 
 app.Run();

@@ -19,31 +19,31 @@ namespace Domain.DBEntities
         // this is for John's ability, which he cannot fire duplicate person.
         // be aware that this array does not contain John himself.
         public List<string> JohnFireList = new List<string>();
-        public Users? WhoIsCurrentlyDiscussing = null;
+        public string? WhoIsCurrentlyDiscussing = null;
 
         // game fields
         public bool gameInProgess = false;
         // this field will only have value when gameInProgess = true
         // keep record of what current status is.
-        public ConcurrentDictionary<string, string> currentGameStatus = new ConcurrentDictionary<string, string>();
+        /*public ConcurrentDictionary<string, string> currentGameStatus = new ConcurrentDictionary<string, string>();*/
+        public string currentGameStatus = "";
         public int day { get; set; } = 1;
         public double judaismLostVote { get; set; } = 0.0;
         public double judaismTotalVote { get; set; } = 0.0;
         public double christianLostVote { get; set; } = 0.0;
         public double totalVotes { get; set; } = 0.0;
-        public bool resetWaitingUserForGameHistory { get; set; } = false;
-        public Users? lastNightExiledPlayer { get; set; } = null;
+        /*public bool resetWaitingUserForGameHistory { get; set; } = false;*/
+        public (string name, Identities identity) lastNightExiledPlayer { get; set; } = ("", Identities.NullState);
 
         // this is for reconnected users.
         public string discussingTopic { get; set; } = "";
         public string voteResult { get; set; } = "";
-        /*public int whoWins { get; set; } = -1;*/
 
         public GamesGroupsUsersMessages(string groupName, int maxPlayers)
         {
             this.groupName = groupName;
             this.maxPlayers = maxPlayers;
-            /*this.maxPlayers = 4;*/
+            /*this.maxPlayers = 6;*/
         }
         public List<Identities>? issuedIdentityCards()
         {
@@ -121,14 +121,14 @@ namespace Domain.DBEntities
             judaismTotalVote = 0.0;
             christianLostVote = 0.0;
             totalVotes = 0.0;
-            lastNightExiledPlayer = null;
-            resetWaitingUserForGameHistory = false;
+            lastNightExiledPlayer = ("", Identities.NullState);
+            /*resetWaitingUserForGameHistory = false;*/
             gameInProgess = false;
             WhoIsCurrentlyDiscussing = null;
         }
         public void beforeGameCleanUp()
         {
-            currentGameStatus.Clear();
+            currentGameStatus = "";
             discussingTopic = "";
             voteResult = "";
             /*whoWins = -1;*/

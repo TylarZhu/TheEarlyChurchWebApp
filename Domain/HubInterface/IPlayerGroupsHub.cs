@@ -42,9 +42,10 @@ namespace Domain.HubInterface
         Task changeDay(int day);
         Task getAQuestion(Questions questions);
         Task inAnswerQuestionName(string name = "");
-        Task JudasGivePriestHint(string priestName);
+        Task JudasGivePriestHint();
+        Task AssignJudasHimselfAndPriestName(string priestName, string judasName);
         Task PriestReceiveHint(string JudasName, string hint);
-        Task announceLastExiledPlayerInfo(bool status, string name = "");
+        Task announceLastExiledPlayerInfo(bool status, string name);
         Task announceWinner(int winnerParty);
         Task announceGameHistory(ConcurrentDictionary<string, List<string>>? history);
         Task updateGameMessageHistory(ConcurrentDictionary<string, List<string>>? gameMessageHistory);

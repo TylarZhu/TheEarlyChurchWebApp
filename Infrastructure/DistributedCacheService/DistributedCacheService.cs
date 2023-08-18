@@ -169,7 +169,7 @@ namespace Infrastructure.DistributedCacheService
                 string addMessage = string.IsNullOrEmpty(message) ? "" : message;
                 if(messages != null)
                 {
-                    addMessage += "These players answered Spritual Questions correctly! (VP + 0.5): \n";
+                    addMessage += "These players answered Spritual Questions correctly! (VP + 0.25): \n";
                     foreach (string smallMessage in messages)
                     {
                         addMessage += smallMessage + "\n";
@@ -431,7 +431,7 @@ namespace Infrastructure.DistributedCacheService
                             x.disscussed = true;
                             return x;
                         });
-                    group.WhoIsCurrentlyDiscussing = nextUser;
+                    group.WhoIsCurrentlyDiscussing = nextUser.name;
                     await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     return nextUser;
                 }
@@ -778,7 +778,8 @@ namespace Infrastructure.DistributedCacheService
                                     x.aboutToExile = false;
                                     return x;
                                 });
-                            group.lastNightExiledPlayer = null;
+                            /*group.lastNightExiledPlayer = null;*/
+                            group.lastNightExiledPlayer = ("", Identities.NullState);
                             AddNewMessageIntoGroup(group, "John protect Peter! Peter did not exiled.");
                             await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                             return null;
@@ -791,21 +792,12 @@ namespace Infrastructure.DistributedCacheService
                             return x;
                         });
                     addLostVote(group, user);
-                    group.lastNightExiledPlayer = user;
-                    // offline user can still be exiled but we cannot decrease numberofWaitingUser
-                    /*if (!user.offLine)
-                    {
-                        UpdateHelper.TryUpdateCustom(group.numberofWaitingUser, "WaitingUsers",
-                            x => {
-                                x--;
-                                return x;
-                            });
-                    }*/
+                    group.lastNightExiledPlayer = (user.name, user.identity);
                     AddNewMessageIntoGroup(group, $"{user.name} has been exiled! His/her identity is {user.identity}!");
                     await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
                     return user;
                 }
-                group.lastNightExiledPlayer = null;
+                group.lastNightExiledPlayer = ("", Identities.NullState);
                 AddNewMessageIntoGroup(group, $"No one has been exiled!");
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
@@ -871,7 +863,7 @@ namespace Infrastructure.DistributedCacheService
             }
             return -1;
         }
-        public async Task<Users?> getLastNightExiledPlayer(string groupName)
+        public async Task<(string, Identities)?> getLastNightExiledPlayer(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
@@ -1140,12 +1132,12 @@ namespace Infrastructure.DistributedCacheService
             }
             return null;
         }
-        public async Task changeCurrentGameStatus(string groupName, string gameStatus)
+        public async Task<bool> changeCurrentGameStatus(string groupName, string gameStatus)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                if(!group.currentGameStatus.TryGetValue("currentGameStatus", out string? _))
+               /* if(!group.currentGameStatus.TryGetValue("currentGameStatus", out string? _))
                 {
                     group.currentGameStatus.TryAdd("currentGameStatus", gameStatus);
                 }
@@ -1153,19 +1145,23 @@ namespace Infrastructure.DistributedCacheService
                 {
                     group.currentGameStatus.TryRemove("currentGameStatus", out string? _);
                     group.currentGameStatus.TryAdd("currentGameStatus", gameStatus);
-                }
+                }*/
+                group.currentGameStatus = gameStatus;
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
+                return true;
             }
+            return false;
         }
         public async Task<string> getCurrentGameStatus(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)
             {
-                if(group.currentGameStatus.TryGetValue("currentGameStatus", out string? value) && !string.IsNullOrEmpty(value))
+                /*if(group.currentGameStatus.TryGetValue("currentGameStatus", out string? value) && !string.IsNullOrEmpty(value))
                 {
                     return value;
-                }
+                }*/
+                return group.currentGameStatus;
             }
             return "";
         }
@@ -1194,7 +1190,7 @@ namespace Infrastructure.DistributedCacheService
                     // if player is not offline, then set viewedResult to false.
                     // For player is offline, keep the viewedResult to true.
                     // Because when player is back online, he already passed the current game state
-                    if (!user.Value.offLine) 
+                    /*if (!user.Value.offLine) 
                     {
                         UpdateHelper.TryUpdateCustom(group.onlineUsers, user.Value.name,
                            x =>
@@ -1202,7 +1198,13 @@ namespace Infrastructure.DistributedCacheService
                                x.viewedResult = false;
                                return x;
                            });
-                    }
+                    }*/
+                    UpdateHelper.TryUpdateCustom(group.onlineUsers, user.Value.name,
+                        x =>
+                        {
+                            x.viewedResult = false;
+                            return x;
+                        });
                 }
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
@@ -1295,7 +1297,7 @@ namespace Infrastructure.DistributedCacheService
                 await distributedCache.SetStringAsync(groupName, JsonConvert.SerializeObject(group));
             }
         }
-        public async Task<Users?> getWhoIsCurrentlyDiscussing(string groupName)
+        public async Task<string?> getWhoIsCurrentlyDiscussing(string groupName)
         {
             GamesGroupsUsersMessages? group = await GetGroupAsync(groupName);
             if (group != null)

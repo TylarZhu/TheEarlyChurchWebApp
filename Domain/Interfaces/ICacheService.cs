@@ -111,7 +111,7 @@ namespace Domain.Interfaces
         Task<List<Users>> collectAllExiledAndOfflineUserName(string groupName);
         Task<List<Users>> collectAllExileUserName(string groupName);
         Task<int> getDay(string groupName);
-        Task<Users?> getLastNightExiledPlayer(string groupName);
+        Task<(string, Identities)?> getLastNightExiledPlayer(string groupName);
         Task<Users?> chooseARandomPlayerToExile(string groupName);
         Task setDiscussingTopic(string groupName, string topic);
         Task<string> getDiscussingTopic(string groupName);
@@ -136,13 +136,13 @@ namespace Domain.Interfaces
         Task<bool> addConnectionIdToGroup(string connectionId, string groupName);
         // --- WARNING --- //
 
-        Task changeCurrentGameStatus(string groupName, string gameStatus);
+        Task<bool> changeCurrentGameStatus(string groupName, string gameStatus);
         Task<string> getCurrentGameStatus(string groupName);
         Task setViewedResultToTrue(string groupName, string name);
         Task resetAllViewedResultState(string groupName);
         Task<List<Users>?> doesAllPlayerViewedResult(string groupName);
         Task<List<Users>?> getListOfOfflineUsers(string groupName);
-        Task<Users?> getWhoIsCurrentlyDiscussing(string groupName);
+        Task<string?> getWhoIsCurrentlyDiscussing(string groupName);
         /// <summary>
         /// call this method when user close the tab or refresh the page
         /// </summary>

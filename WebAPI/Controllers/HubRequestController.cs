@@ -6,6 +6,7 @@ using Domain.Interfaces;
 using Domain.APIClass;
 using Domain.Common;
 using System.Collections.Concurrent;
+using WebAPI.HubMethods;
 
 namespace WebAPI.Controllers
 {
@@ -143,27 +144,5 @@ namespace WebAPI.Controllers
                 return NotFound(false);
             }
         }
-        /*[HttpDelete("userLeaveTheGameByConnectionId/{connectionId}")]
-        public async Task<ActionResult> userLeaveTheGameByConnectionId(string connectionId)
-        {
-            Users? leaveUser = await redisCacheService.removeUserFromGroupByConnectionId(connectionId);
-            string? removeUserGroupName = await redisCacheService.removeConnectionIdFromGroup(connectionId);
-            if (leaveUser != null && removeUserGroupName != null)
-            {
-                await _hub.Clients.Group(removeUserGroupName).updateOnlineUserList(
-                    await redisCacheService.getAllUsers(removeUserGroupName));
-                if (!await redisCacheService.isGroupEmpty(removeUserGroupName) && leaveUser.groupLeader)
-                {
-                    Users? onlineUser = await redisCacheService.getGroupLeaderFromGroup(removeUserGroupName);
-                    if(onlineUser != null)
-                    {
-                        await _hub.Clients.Group(removeUserGroupName)
-                            .updateGroupLeader(new CreateNewUser(onlineUser.connectionId, onlineUser.name, removeUserGroupName, "0"));
-                        return Ok();
-                    }
-                }
-            }
-            return BadRequest();
-        }*/
     }
 }
